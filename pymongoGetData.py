@@ -1,28 +1,45 @@
 from pymongo import MongoClient
-def get_database():
- 
-   client = MongoClient('mongodb+srv://Conor:<password>@mastervaultdb1.g1a7o98.mongodb.net/?retryWrites=true&w=majority&appName=MasterVaultDB1')
 
-   db = client.sample_mflix
-   comments_collection = db.comments
+client = MongoClient('mongodb+srv://Conor:M0ng0DB1@mastervaultdb1.g1a7o98.mongodb.net/?retryWrites=true&w=majority&appName=MasterVaultDB1')
 
-   first = comments_collection.find_one()
+db = client.Test
+collection = db["Collection 1"]
 
-   print(first)
 
-get_database()
+# def find_database():
+    
+#    results = collection.find({"name":"Stuwart"})
 
-#    # Provide the mongodb atlas url to connect python to mongodb using pymongo
-#    CONNECTION_STRING = "mongodb+srv://Conor:<password>@mastervaultdb1.g1a7o98.mongodb.net/?retryWrites=true&w=majority&appName=MasterVaultDB1"
- 
-#    # Create a connection using MongoClient. You can import MongoClient or use pymongo.MongoClient
-#    client = MongoClient(CONNECTION_STRING)
- 
-#    # Create the database for our example (we will use the same database throughout the tutorial
-#    return client['user_shopping_list']
-  
-# # This is added so that many files can reuse the function get_database()
-# if __name__ == "__main__":   
-  
-#    # Get the database
-#    dbname = get_database()
+#    for result in results:
+#       print(result["_id"])
+   
+   # results = collection.find({"email":"stuwart@email"})
+
+   # for x in results:
+   #    print(x)
+
+   # print(results)
+
+# find_database()
+
+def post_database():
+
+   # post1 = {"name": "Greg", "email": "filler@email"}
+   # post2 = {"name": "Stuwart", "email": "filler@email"}
+
+   # collection.insert_many([post1, post2])
+
+   query = {"name":"Stuwart"}
+   existing_post = collection.find_one(query)
+
+   if existing_post:
+      
+      new_data = {"$set":{"Username":"name"}}
+      collection.update_one(query, new_data)
+
+      print("Post updated successfully.")
+
+   else:
+      print("Post with name 'Stuwart' not found.")
+
+post_database()
