@@ -5,18 +5,19 @@ client = MongoClient('mongodb+srv://Conor:M0ng0DB1@mastervaultdb1.g1a7o98.mongod
 db = client.Test
 collection1 = db["Collection 1"]
 collection2 = db["Collection 2"]
+passwords = db["Password Test"]
 
-def id_test():
+def copy_id_test():
 
     searchC1 = collection1.find_one({"name": "Stuwart"})
 
     if searchC1:
         c1ID = searchC1["_id"]
 
-        c2Target = collection2.find_one({"_id":c1ID})
+        c2Target = passwords.find_one({"_id":c1ID})
 
         if c2Target is None:
-            collection2.insert_one({"_id":c1ID})
+            passwords.insert_one({"_id":c1ID})
             print("Inserted new post.")
         else:
             print("Post already exists.")
@@ -24,4 +25,8 @@ def id_test():
     else:
         print("No dice")
 
-id_test()
+def password_test():
+
+# copy_id_test()
+
+password_test()
