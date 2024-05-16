@@ -13,6 +13,7 @@ client = MongoClient('mongodb+srv://Conor:M0ng0DB1@mastervaultdb1.g1a7o98.mongod
 db = client.MasterVault
 userData = db["userData"]
 userPasswords = db["userPasswords"]
+sessionID = "empty"
 
 # Encrypt data
 # def encryptData():
@@ -181,55 +182,51 @@ def login():
         # Ensure that email and password are not None
         if email is not None and password is not None:
 
-            findEmail = userData.find_one({"email": email})
-            findPassword = userData.find_one({"password": password})
+            findPost = userData.find_one({"email": email, "loginPassword": password})
 
-            if findEmail is not None and findPassword is not None and findEmail['_id'] == findPassword['_id']:
+            print(findPost)
 
-                for i in findEmail:
-                    session['ID'] = findEmail["_id"]
+            if findPost:
                 
-                if 
+                postEmail = findPost["email"]
+                postPassword = findPost["loginPassword"]
+                # session['ID'] = findPost["_id"]
 
-            # with open('loginInfo.csv', 'r') as file:
-            #     csvreader = csv.reader(file)
-            #     for account in csvreader:
-            #         # Ensure account has enough fields
-            #         print(account)
-            #         padded_account = account + [None] * (9 - len(account))
-            #         username, account_email, dob, account_password, _2fa_status, master_password_set, lock_state, lock_duration, lock_timestamp = padded_account
+                # print("User Email: ", email)
+                # print("User Password: ", password)
+                # print("Post Email: ", postEmail)
+                # print("Post Password: ", postPassword)
+                # print(session['ID'])
 
-            #         dob = dob
-            #         _2fa_status = _2fa_status
+                if email == postEmail and password == postPassword:
 
-            #         if email == account_email and password == decrypt(account_password):
-            #             # Check if master password is set
-            #             if master_password_set.lower() == 'empty':
-            #                 # Redirect to master password setup if not set
-            #                 if request.is_json:
-            #                     # JSON response indicating master password setup is needed
-            #                     return jsonify(
-            #                         {"status": "setup_master_password", "message": "Master password setup required"})
-            #                 else:
-            #                     session['username'] = username
-            #                     session['email'] = email
-            #                     return redirect(url_for('master_password'))
+                    sessionID == findPost["_id"]
 
-            #         if email == account_email and password == account_password:
-            #             if request.is_json:
-            #                 return jsonify({"status": "success", "username": username, "email": email})
-            #             else:
-            #                 session['username'] = username
-            #                 session['email'] = email
-            #                 return redirect(url_for('passwordList'))
+                    if findPost["masterPassword"] == None:
+                            if request.is_json:
+                                # JSON response indicating master password setup is needed
+                                return jsonify(
+                                    {"status": "setup_master_password", "message": "Master password setup required"})
+                            else:
+                                session['username'] = findPost["username"]
+                                session['email'] = email
+                                return redirect(url_for('master_password'))
+                
+                if email == postEmail and password == postPassword:
+                    if request.is_json:
+                        return jsonify({"status": "success", "username": findPost["username"], "email": email})
+                    else:
+                        session['username'] = findPost["username"]
+                        session['email'] = email
+                        return redirect(url_for('passwordList'))
 
-        # Handle invalid email or password
-        error_message = "Invalid email or password"
-        if request.is_json:
-            return jsonify({"status": "failure", "message": error_message}), 401
-        else:
-            flash(error_message)
-            return render_template("login.html", form=cform)
+            # Handle invalid email or password
+            error_message = "Invalid email or password"
+            if request.is_json:
+                return jsonify({"status": "failure", "message": error_message}), 401
+            else:
+                flash(error_message)
+                return render_template("login.html", form=cform)
 
     return render_template("login.html", form=LoginForm())
 
@@ -238,6 +235,7 @@ def login():
 def logout():
     # Clear the user's session
     session.clear()
+    sessionID = None
 
     return redirect(url_for('login'))
 
@@ -273,8 +271,8 @@ def register():
                     "email": cform.email.data,
                     "DOB": dobTime,
                     "loginPassword": cform.password.data,
-                    "animalID": "empty",
-                    "masterPassword": "empty",
+                    "animalID": None,
+                    "masterPassword": None,
                     "2FA": False,
                     "accountLocked": "Unlocked",
                     "lockDuration": 0,
@@ -293,11 +291,19 @@ def register():
 
 @app.route('/master_password', methods=['GET', 'POST'])
 def master_password():
+
     email = session.get('email')
+
+    print(sessionID)
+
+    findPost = userData.find_one({"_id": sessionID})
+
     # Check if the user is logged in and if the account is locked
     if email:
-        locked, _ = get_lock_state_from_csv(email)
-        if locked == 'Locked':
+        print("Before lockPost is assigned a variable")
+        lockedPost = findPost["accountLocked"]
+        print(lockedPost)
+        if lockedPost == "Locked":
             flash(
             'Your account is currently locked. You cannot set or reset the master password while the account is locked.',
             'error')
@@ -306,9 +312,9 @@ def master_password():
     if request.method == 'POST':
         master_password = request.form['master_password']
 
-        encrypted_master_password = encrypt(master_password)
         # Save the encrypted master password to the user's account
-        save_master_password(email, encrypted_master_password)
+        userData.update_one({"_id": sessionID}, {"$set": {"masterPassword": master_password}})
+
         # Flash a success message
         flash('Master password set up successfully!', 'success')
         return redirect(url_for('passwordList'))
@@ -316,24 +322,24 @@ def master_password():
     return render_template('masterPassword.html')
 
 
-def save_master_password(email, master_password):
-    data = []
-    updated = False
-    with open('loginInfo.csv', 'r', newline='') as file:
-        csvreader = csv.reader(file)
-        for row in csvreader:
-            if row and row[1] == email:
-                if len(row) < 6:
-                    row.append(master_password)
-                else:
-                    row[5] = master_password
-                updated = True
-            data.append(row)
+# def save_master_password(email, master_password):
+#     data = []
+#     updated = False
+#     with open('loginInfo.csv', 'r', newline='') as file:
+#         csvreader = csv.reader(file)
+#         for row in csvreader:
+#             if row and row[1] == email:
+#                 if len(row) < 6:
+#                     row.append(master_password)
+#                 else:
+#                     row[5] = master_password
+#                 updated = True
+#             data.append(row)
 
-    if updated:
-        with open('loginInfo.csv', 'w', newline='') as file:
-            csvwriter = csv.writer(file)
-            csvwriter.writerows(data)
+#     if updated:
+#         with open('loginInfo.csv', 'w', newline='') as file:
+#             csvwriter = csv.writer(file)
+#             csvwriter.writerows(data)
 
 
 @app.route('/addPassword', methods=['GET', 'POST'])

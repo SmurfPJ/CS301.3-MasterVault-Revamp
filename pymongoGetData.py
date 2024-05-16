@@ -4,14 +4,21 @@ client = MongoClient('mongodb+srv://Conor:M0ng0DB1@mastervaultdb1.g1a7o98.mongod
 
 db = client.Test
 collection = db["Collection 1"]
+mvdb = client.MasterVault
+userData = mvdb["userData"]
 
 
 def find_database():
     
    results = collection.find({"name":"Stuwart"})
+   print(results)
 
    for result in results:
-      print(result["_id"])
+      printObject1 = result["_id"]
+      printObject2 = result["email"]
+   
+   print(printObject1)
+   print(printObject2)
    
    results = collection.find({"email":"stuwart@email"})
 
@@ -64,4 +71,15 @@ def post_database():
    else:
       print("Post with name 'Stuwart' not found.")
 
-post_database()
+# post_database()
+
+
+
+def replace_masterPassword():
+
+   findID = userData.find_one({"username": "Conor"})
+   userID = findID["_id"]
+
+   userData.update_one({"_id": userID}, {"$set": {"masterPassword": "Test"}})
+
+replace_masterPassword()
