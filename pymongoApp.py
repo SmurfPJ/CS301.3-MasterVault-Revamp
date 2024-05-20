@@ -13,7 +13,6 @@ client = MongoClient('mongodb+srv://Conor:M0ng0DB1@mastervaultdb1.g1a7o98.mongod
 db = client.MasterVault
 userData = db["userData"]
 userPasswords = db["userPasswords"]
-sessionID = "empty"
 
 # Encrypt data
 # def encryptData():
@@ -40,6 +39,16 @@ app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
 app.config['MAIL_USE_SSL'] = True
 app.config['MAIL_USE_TLS'] = False
 mail = Mail(app)
+
+
+
+def getSessionID():
+    return sessionID
+
+def setSessionID(userID):
+    global sessionID
+    sessionID = userID
+
 
 
 def generate_password(keyword, length, use_numbers, use_symbols):
@@ -70,6 +79,7 @@ def generate_password(keyword, length, use_numbers, use_symbols):
     return password
 
 
+
 def get_passwords(user):
     # Open csv file
     file = open('userData.csv')
@@ -89,6 +99,7 @@ def get_passwords(user):
             userAccounts.sort(key=lambda x: x[0])  # Sorts data alphabetically by website
             return userAccounts
     return []
+
 
 
 def check_password_strength(password):
@@ -127,11 +138,12 @@ def check_password_strength(password):
     return strength
 
 
+
 @app.route('/create_password', methods=['GET'])
 def create_password():
     # Default values for initial page load
-    return render_template(
-        'createPassword.html')  # , password="", keyword="", length=8, use_numbers=False, use_symbols=False
+    return render_template('createPassword.html')  # , password="", keyword="", length=8, use_numbers=False, use_symbols=False
+
 
 
 @app.route('/create_password', methods=['POST'])
@@ -157,6 +169,7 @@ def handle_create_password():
     # Render the same template with new data
     return render_template('createPassword.html', password=password, strength=strength, error=error, keyword=keyword,
                            length=length, use_numbers=use_numbers, use_symbols=use_symbols)
+
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -190,17 +203,11 @@ def login():
                 
                 postEmail = findPost["email"]
                 postPassword = findPost["loginPassword"]
-                # session['ID'] = findPost["_id"]
-
-                # print("User Email: ", email)
-                # print("User Password: ", password)
-                # print("Post Email: ", postEmail)
-                # print("Post Password: ", postPassword)
-                # print(session['ID'])
 
                 if email == postEmail and password == postPassword:
 
-                    sessionID == findPost["_id"]
+                    setSessionID(findPost["_id"])
+                    print(getSessionID())
 
                     if findPost["masterPassword"] == None:
                             if request.is_json:
@@ -231,13 +238,15 @@ def login():
     return render_template("login.html", form=LoginForm())
 
 
+
 @app.route('/logout')
 def logout():
     # Clear the user's session
     session.clear()
-    sessionID = None
+    setSessionID(None)
 
     return redirect(url_for('login'))
+
 
 
 def send_2fa_verification_email(email, pin):
@@ -289,18 +298,18 @@ def register():
     return render_template("register.html", form=cform)
 
 
+
 @app.route('/master_password', methods=['GET', 'POST'])
 def master_password():
 
     email = session.get('email')
 
-    print(sessionID)
-
-    findPost = userData.find_one({"_id": sessionID})
+    findPost = userData.find_one({"_id": getSessionID()})
 
     # Check if the user is logged in and if the account is locked
     if email:
         print("Before lockPost is assigned a variable")
+        print
         lockedPost = findPost["accountLocked"]
         print(lockedPost)
         if lockedPost == "Locked":
@@ -313,7 +322,7 @@ def master_password():
         master_password = request.form['master_password']
 
         # Save the encrypted master password to the user's account
-        userData.update_one({"_id": sessionID}, {"$set": {"masterPassword": master_password}})
+        userData.update_one({"_id": getSessionID()}, {"$set": {"masterPassword": master_password}})
 
         # Flash a success message
         flash('Master password set up successfully!', 'success')
@@ -322,66 +331,67 @@ def master_password():
     return render_template('masterPassword.html')
 
 
-# def save_master_password(email, master_password):
-#     data = []
-#     updated = False
-#     with open('loginInfo.csv', 'r', newline='') as file:
-#         csvreader = csv.reader(file)
-#         for row in csvreader:
-#             if row and row[1] == email:
-#                 if len(row) < 6:
-#                     row.append(master_password)
-#                 else:
-#                     row[5] = master_password
-#                 updated = True
-#             data.append(row)
-
-#     if updated:
-#         with open('loginInfo.csv', 'w', newline='') as file:
-#             csvwriter = csv.writer(file)
-#             csvwriter.writerows(data)
-
 
 @app.route('/addPassword', methods=['GET', 'POST'])
 def addPassword():
     if request.method == 'POST':
         username = session['username']
+        # print("Session Username: ", session['username'])
+        # print("Username: ", username)
         website = request.form['website']
         email = request.form['email']
         password = request.form['password']
 
-        website = encrypt(website)
-        email = encrypt(email)
-        password = encrypt(password)
+        # website = encrypt(website)
+        # email = encrypt(email)
+        # password = encrypt(password)
 
-        saveNewPassword(username,website, email, password)
+        saveNewPassword(website, email, password)
 
         return redirect(url_for('passwordList'))
 
     return render_template('addPassword.html')
 
 
-def saveNewPassword(username, website, email, password):
-    data = []
-    updated = False
+def saveNewPassword(website, email, password):
+    
+    searchPasswords = userPasswords.find_one({"_id": getSessionID()})
 
-    with open('userData.csv', 'r', newline='') as file:
-        csvreader = csv.reader(file)
-        for row in csvreader:
-            if row and row[0] == username:
-                if len(row) % 3 == 1:
-                    row.extend([website, email, password])
-                else:
-                    row[-3:] = [website, email, password]
-                updated = True
-            data.append(row)
+    i = 1
+    post = {}
 
-    if not updated:
-        data.append([username, website, email, password])
+    if searchPasswords == None:
+        userPasswords.insert_one({"_id": getSessionID()})
 
-    with open('userData.csv', 'w', newline='') as file:
-        csvwriter = csv.writer(file)
-        csvwriter.writerows(data)
+
+    while True:
+        newName = f"Name{i}"
+        newWebsite = f"Website{i}"
+        newEmail = f"Email{i}"
+        newUsername = f"Username{i}"
+        newAccountNumber = f"AccountNumber{i}"
+        newPin = f"Pin{i}"
+        newDate = f"Date{i}"
+        newPassword = f"Password{i}"
+
+        if newWebsite not in searchPasswords:
+            post = {
+                    newName: None,
+                    newWebsite: website,
+                    newEmail: email,
+                    newUsername: None,
+                    newAccountNumber: None,
+                    newPin: None,
+                    newDate: None,
+                    newPassword: password
+                }
+            break
+        i += 1
+
+    print(post)
+
+    newData = {"$set": post}
+    userPasswords.update_one(searchPasswords, newData)
 
 
 @app.route('/passwordView/<website>/<email>/<password>', methods=['GET', 'POST'])

@@ -2,12 +2,12 @@ from pymongo import MongoClient
 
 client = MongoClient('mongodb+srv://Conor:M0ng0DB1@mastervaultdb1.g1a7o98.mongodb.net/?retryWrites=true&w=majority&appName=MasterVaultDB1')
 
-db = client.Test
-collection1 = db["Collection 1"]
+db = client.MasterVault
+collection1 = db["userData"]
 collection2 = db["Collection 2"]
-passwords = db["Password Test"]
+passwords = db["userPasswords"]
 
-searchC1 = collection1.find_one({"name": "Stuwart"})
+searchC1 = collection1.find_one({"username": "Conor"})
 
 def copy_id_test():
 
