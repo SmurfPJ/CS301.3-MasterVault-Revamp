@@ -8,7 +8,7 @@ from pymongo import MongoClient
 import random, string, csv, os
 
 # Constants
-ACCOUNT_METADATA_LENGTH = 3
+ACCOUNT_METADATA_LENGTH = 8
 client = MongoClient('mongodb+srv://Conor:M0ng0DB1@mastervaultdb1.g1a7o98.mongodb.net/?retryWrites=true&w=majority&appName=MasterVaultDB1')
 db = client.MasterVault
 userData = db["userData"]
@@ -80,25 +80,34 @@ def generate_password(keyword, length, use_numbers, use_symbols):
 
 
 
-def get_passwords(user):
-    # Open csv file
-    file = open('userData.csv')
-    type(file)
-    csvreader = csv.reader(file)
-    for csvAccount in csvreader:  # Reads each account in csv
-        if user == csvAccount[0]:  # Checks if account matches user
-            userAccounts = []
-            # Splits account data into lists of size 3 (In pattern [website, email, password])
-            for accountDataIdx in range(len(csvAccount) - 1):
-                dataChunk = csvAccount[accountDataIdx + 1]
-                dataChunk = decrypt(dataChunk)
-                if accountDataIdx % (ACCOUNT_METADATA_LENGTH) == 0:
-                    userAccounts.append([])
-                userAccounts[-1].append(dataChunk)
+def getPasswords():
+    findPost = userPasswords.find_one({'_id': getSessionID()})
+    userList = []
+    currentList = []
 
-            userAccounts.sort(key=lambda x: x[0])  # Sorts data alphabetically by website
-            return userAccounts
-    return []
+    if not findPost:
+        print("No userData found")
+        return []
+
+    for key, value in findPost.items():
+        if key == '_id':
+            continue  # Skip the '_id' key
+
+        print(f"Processing field: {key} with value: {value}")
+        currentList.append(value)  # Store value to the list
+
+        # If the account reaches the max length, add the list to userList
+        if len(currentList) == ACCOUNT_METADATA_LENGTH:
+            userList.append(currentList)
+            currentList = []
+
+    # Add the remaining items if the last list is not empty
+    if currentList:
+        userList.append(currentList)
+
+
+    print("User Accounts: ", userList)
+    return userList
 
 
 
@@ -335,7 +344,6 @@ def master_password():
 @app.route('/addPassword', methods=['GET', 'POST'])
 def addPassword():
     if request.method == 'POST':
-        username = session['username']
         # print("Session Username: ", session['username'])
         # print("Username: ", username)
         website = request.form['website']
@@ -376,7 +384,7 @@ def saveNewPassword(website, email, password):
 
         if newWebsite not in searchPasswords:
             post = {
-                    newName: None,
+                    newName: newName,
                     newWebsite: website,
                     newEmail: email,
                     newUsername: None,
@@ -397,10 +405,6 @@ def saveNewPassword(website, email, password):
 @app.route('/passwordView/<website>/<email>/<password>', methods=['GET', 'POST'])
 def passwordView(website, email, password):
     if request.method == 'POST':
-        # print("Data received:")
-        # print("Website:", request.form['website'])
-        # print("Email:", request.form['email'])
-        # print("Password:", request.form['password'])
         username = session['username']
         newWebsite = request.form['website']
         newEmail = request.form['email']
@@ -408,6 +412,7 @@ def passwordView(website, email, password):
         saveChanges(username, website, email, password, newEmail, newPassword, newWebsite)
         return redirect(url_for('passwordList'))
     return render_template('passwordView.html', website=website, email=email, password=password)
+
 
 
 def saveChanges(username, old_website, old_email, old_password, new_website, new_email, new_password):
@@ -466,22 +471,19 @@ def resetPassword(username, newPassword):
 
 @app.route('/passwordList', methods=['GET'])
 def passwordList():
-    # Check if the user is logged in
     if 'username' in session:
-        # Get the username from the session
-        username = session['username']
-        with open('loginInfo.csv', 'r', newline='') as file:
-            csvreader = csv.reader(file)
-            for row in csvreader:
-                if row and row[0] == username:
-                    if row[6] == 'Locked':
-                        return redirect(url_for('lockedPasswordList'))
-                    else:
-                        user_passwords = get_passwords(username)
-                        return render_template('passwordList.html', passwords=user_passwords)
+        findPost = userData.find_one({'_id': getSessionID()})
 
+        if findPost.get('accountLocked') == "Locked":
+            print("Account is Locked")
+            return redirect(url_for('lockedPasswordList'))
+        elif findPost.get('accountLocked') == "Unlocked":
+            userPasswordList = getPasswords()
+            print("Name: ", userPasswordList[0][2])
+            print("Name: ", userPasswordList[0][4])
+            print("Name: ", userPasswordList[0][7])
+            return render_template('passwordList.html', passwords=userPasswordList)
     else:
-        # Redirect to the login page if the user is not logged in
         flash('Please log in to access your passwords.', 'warning')
         return redirect(url_for('login'))
 

@@ -66,68 +66,59 @@ def get_passwords(user_id):
     # Connect to MongoDB
 
     # Find user by _id
-    user_data = passwords.find_one({'_id': c1ID})
+    userData = passwords.find_one({'_id': c1ID})
     print("Found account")
 
-    for i in user_data:
+    for i in userData:
         print(i)
     
-    if not user_data:
-        print("Not user_data")
+    if not userData:
+        print("Not userData")
         return []
 
-    user_accounts = []
-    current_list = []
+    userAccounts = []
+    currentList = []
 
     # Exclude the '_id' field and process the remaining fields
-    for key, value in user_data.items():
+    for key, value in userData.items():
         if key == '_id':
             continue  # Skip the '_id' field
         
         print(f"Processing field: {key} with value: {value}")
         
-        current_list.append(value)  # Store only the value
+        currentList.append(value)  # Store only the value
         
-        # If the current list reaches the specified length, add it to user_accounts and start a new list
-        if len(current_list) == ACCOUNT_METADATA_LENGTH:
-            user_accounts.append(current_list)
-            current_list = []
+        # If the current list reaches the specified length, add it to userAccounts and start a new list
+        if len(currentList) == ACCOUNT_METADATA_LENGTH:
+            userAccounts.append(currentList)
+            currentList = []
     
     # Add the remaining items if the last list is not empty
-    if current_list:
-        user_accounts.append(current_list)
+    if currentList:
+        userAccounts.append(currentList)
 
     # Sort each sublist (no need to sort since there are no keys, but keeping it for completeness)
-    # for sublist in user_accounts:
+    # for sublist in userAccounts:
     #     sublist.sort()
 
-    print("User Accounts: ", user_accounts)
+    print("User Accounts: ", userAccounts)
     
     # Print the first list, if it exists
-    if user_accounts:
-        print("First list:", user_accounts[0])
-        print("Item 10: ", user_accounts[1][2])
+    if userAccounts:
+        print("First list:", userAccounts[0])
+        print("Item 10: ", userAccounts[1][2])
 
-    return user_accounts
+    return userAccounts
 
-# def old_get_passwords(user):
-#     # Open csv file
-#     file = open('userData.csv')
-#     type(file)
-#     csvreader = csv.reader(file)
-#     for csvAccount in csvreader:  # Reads each account in csv
-#         if user == csvAccount[0]:  # Checks if account matches user
-#             userAccounts = []
-#             # Splits account data into lists of size 3 (In pattern [website, email, password])
-#             for accountDataIdx in range(len(csvAccount) - 1):
-#                 dataChunk = csvAccount[accountDataIdx + 1]
-#                 dataChunk = dataChunk
-#                 if accountDataIdx % (ACCOUNT_METADATA_LENGTH) == 0:
-#                     userAccounts.append([])
-#                 userAccounts[-1].append(dataChunk)
+# get_passwords('66456a65417af5ad6573f760')
 
-#             userAccounts.sort(key=lambda x: x[0])  # Sorts data alphabetically by website
-#             return userAccounts
-#     return []
 
-get_passwords('66456a65417af5ad6573f760')
+
+def mongodbIf():
+
+    print(searchC1.get('accountLocked'))
+
+    if searchC1.get('accountLocked') == False:
+        print("Statement is detecting False")
+
+mongodbIf()

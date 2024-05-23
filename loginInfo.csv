@@ -1,2 +1,3 @@
 Username,Email,DOB,Password,2FA,MasterPassword,LockStatus,LockDuration(min),LockTime
-Conor,smurfpj18@gmail.com,2004-02-17,b'gAAAAABl947BieFPjk3suE5fVWGXWUDXCxjij2spF-tJjDRfUH3LbkeOavPvN0Be4e8JrEwcA-UfIO_uaHX6QzuoUki6GfRvqA==',empty,b'gAAAAABl9479ElwCrdzcdn5qRcKkwWFrJwzxFKlx0sr2tOM7RXUdMjxQ-LKwf1lak2iyuYbeJ-9rFAtJM-yUz0YErZsgUQSqKg==',Unlocked,empty,empty
+Conor,smurfpj18@gmail.com,2004-02-17,b'gAAAAABl947BieFPjk3suE5fVWGXWUDXCxjij2spF-tJjDRfUH3LbkeOavPvN0Be4e8JrEwcA-UfIO_uaHX6QzuoUki6GfRvqA==',empty,b'gAAAAABmTpid7k3Jzo_23zRG9kqyvw7CnOWSvz2NC4VevFf8XREoU-NTOnCOsSinyFcgGvV1raJTfrHgwkPtvkmvjsAzmCexFA==',Unlocked,empty,empty
+Smurf,smurfpj18@gmail.com,2004-02-17,b'gAAAAABmTph-aF3SN7JBVhragMqQpUYeMumyhR0q85qveLAq9V--1CQXA73yeY6l46hToICbqSY6DjmH2ajo00PUq8rgK0tc4Q==',empty,b'gAAAAABmTpid7k3Jzo_23zRG9kqyvw7CnOWSvz2NC4VevFf8XREoU-NTOnCOsSinyFcgGvV1raJTfrHgwkPtvkmvjsAzmCexFA==',Unlocked,empty,empty
