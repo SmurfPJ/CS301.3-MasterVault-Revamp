@@ -547,67 +547,49 @@ temporary_2fa_storage = {}
 
 @app.route('/enable_2fa', methods=['POST'])
 def enable_2fa():
-    user_email = request.json.get('email')
-    update_2fa_status(user_email, True)
+    update_2fa_status(True)
     return jsonify({'message': '2FA has been enabled'}), 200
 
 
 @app.route('/disable_2fa', methods=['POST'])
 def disable_2fa():
-    user_email = request.json.get('email')
-    update_2fa_status(user_email, False)
+    update_2fa_status(False)
     return jsonify({'message': '2FA has been disabled'}), 200
 
 
-def update_2fa_status(email, status):
-    updated = False
-    data = []
-    status_string = 'Enabled' if status else 'Disabled'
+def update_2fa_status(status):
 
-    with open('loginInfo.csv', 'r', newline='') as file:
-        csvreader = csv.reader(file)
-        for row in csvreader:
-            if row and row[1] == email:
-                if len(row) >= 5:  # Check if the 2FA status column exists
-                    row[4] = status_string  # Update the 2FA status
-                else:
-                    row.append(status_string)  # Append the 2FA status
-                updated = True
-            data.append(row)
+    userData.update_one({"_id": getSessionID}, {"$set": {"2FA": status}})
+    
 
-    if updated:
-        with open('loginInfo.csv', 'w', newline='') as file:
-            csvwriter = csv.writer(file)
-            csvwriter.writerows(data)
-
-    return updated
+    return status
 
 
 @app.route('/get_2fa_status')
 def get_2fa_status():
     if 'username' in session:
-        user = get_user_by_username(session['username'])
+        findPost = userPasswords.find_one({'_id': getSessionID()})
 
-        two_fa_status = user['2fa_enabled'] == 'Enabled'
+        two_fa_status = findPost['2FA']
         return jsonify({'2fa_enabled': two_fa_status})
     else:
         return jsonify({'error': 'User not logged in'}), 401
 
 
-def get_user_by_username(username):
-    with open('loginInfo.csv', 'r', newline='') as file:
-        csvreader = csv.reader(file)
-        for row in csvreader:
-            if row and row[0] == username:
-                # Convert row to dict
-                user = {
-                    'username': row[0],
-                    'email': row[1],
-                    'dob': row[2],
-                    'password': row[3],
-                    '2fa_enabled': row[4] if len(row) > 4 else 'Disabled'
-                }
-                return user
+# def get_user_by_username(username):
+#     with open('loginInfo.csv', 'r', newline='') as file:
+#         csvreader = csv.reader(file)
+#         for row in csvreader:
+#             if row and row[0] == username:
+#                 # Convert row to dict
+#                 user = {
+#                     'username': row[0],
+#                     'email': row[1],
+#                     'dob': row[2],
+#                     'password': row[3],
+#                     '2fa_enabled': row[4] if len(row) > 4 else 'Disabled'
+#                 }
+#                 return user
 
 
 @app.route('/setup_2fa', methods=['POST'])
@@ -772,13 +754,6 @@ def lock_account_in_csv(email, lock_duration):
 
     return locked
 
-
-def send_2fa_verification_email(email, pin):
-    msg = Message("Your MasterVault 2FA PIN",
-                  sender='nickidummyacc@gmail.com',
-                  recipients=[email])
-    msg.body = f'Your 2FA verification PIN is: {pin}, Please note this code is only valid for 10 minutes.'
-    mail.send(msg)
 
 
 def store_pin(email, pin):
