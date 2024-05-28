@@ -293,7 +293,7 @@ def register():
                     "masterPassword": None,
                     "2FA": False,
                     "accountLocked": "Unlocked",
-                    "lockDuration": 0,
+                    "lockDuration": 'empty',
                     "lockTimestamp": timeNow
                 }
 
@@ -558,38 +558,20 @@ def disable_2fa():
 
 
 def update_2fa_status(status):
-
-    userData.update_one({"_id": getSessionID}, {"$set": {"2FA": status}})
-    
-
+    userData.update_one({"_id": getSessionID()}, {"$set": {"2FA": status}})
     return status
 
 
 @app.route('/get_2fa_status')
 def get_2fa_status():
     if 'username' in session:
-        findPost = userPasswords.find_one({'_id': getSessionID()})
-
+        findPost = userData.find_one({'_id': getSessionID()})
+        print("2FA Status:", findPost['2FA'])
         two_fa_status = findPost['2FA']
         return jsonify({'2fa_enabled': two_fa_status})
     else:
         return jsonify({'error': 'User not logged in'}), 401
 
-
-# def get_user_by_username(username):
-#     with open('loginInfo.csv', 'r', newline='') as file:
-#         csvreader = csv.reader(file)
-#         for row in csvreader:
-#             if row and row[0] == username:
-#                 # Convert row to dict
-#                 user = {
-#                     'username': row[0],
-#                     'email': row[1],
-#                     'dob': row[2],
-#                     'password': row[3],
-#                     '2fa_enabled': row[4] if len(row) > 4 else 'Disabled'
-#                 }
-#                 return user
 
 
 @app.route('/setup_2fa', methods=['POST'])
@@ -622,65 +604,50 @@ def verify_2fa():
 @app.route('/lock_account', methods=['POST'])
 def lock_account():
     data = request.get_json()
-    email = session.get('email')
     lock_duration = data.get('lockDuration')
-    success = lock_account_in_csv(email, lock_duration)  # function to lock the account
+    success = lock_account_in_db(lock_duration)  # function to lock the account
 
     if success:
         # Store lock state in the session
         session['lock_state'] = 'locked'
-        session['unlock_time'] = datetime.datetime.now() + datetime.timedelta(minutes=int(lock_duration))
+        session['unlock_time'] = datetime.now() + datetime.timedelta(minutes=int(lock_duration))
         return jsonify({'status': 'success', 'message': 'Account locked'})
     else:
         return jsonify({'status': 'error', 'message': 'Failed to lock account'})
+    
 
 
 @app.route('/check_lock', methods=['GET'])
 def check_lock():
-    email = session.get('email')
-    lock_state, unlock_timestamp = get_lock_state_from_csv(email)
+    findPost = userData.find_one({'_id': getSessionID()})
+    lock_state = findPost['accountLocked']
+    unlock_timestamp = findPost['lockTimestamp']
     current_time = datetime.now()
 
     # Check if there's an unlock timestamp and convert it to a datetime object
-    if unlock_timestamp:
-        unlock_time = datetime.strptime(unlock_timestamp, '%Y-%m-%d %H:%M:%S')
-    else:
-        unlock_time = None
+    # if unlock_timestamp:
+    #     unlock_time = datetime.strptime(unlock_timestamp, '%Y-%m-%d %H:%M:%S')
+    # else:
+    #     unlock_time = None
 
-    if lock_state == 'Locked' and unlock_time and current_time < unlock_time:
-        return jsonify({'locked': True, 'unlock_time': unlock_time.strftime('%Y-%m-%d %H:%M:%S')})
+    if lock_state == 'Locked' and current_time > unlock_timestamp:
+        return jsonify({'locked': True, 'unlock_time': unlock_timestamp.strftime('%Y-%m-%d %H:%M:%S')})
     else:
-        update_lock_state_in_csv(email, 'Unlocked')
+        update_lock_state_in_db()
         return jsonify({'locked': False})
 
 
-def get_lock_state_from_csv(email):
-    with open('loginInfo.csv', 'r', newline='') as file:
-        csvreader = csv.reader(file)
-        for row in csvreader:
-            if row and row[1] == email:
-                return row[6], row[7]  # Return the lock state and lock duration
-    return 'Unlocked', 'empty'  # Default to 'Unlocked' if not found
 
-
-def update_lock_state_in_csv(email, lock_state, lock_duration='empty', timestamp='empty'):
-    data = []
-    updated = False
-    with open('loginInfo.csv', 'r', newline='') as file:
-        csvreader = csv.reader(file)
-        for row in csvreader:
-            if row and row[1] == email:
-                row[6] = lock_state
-                row[7] = lock_duration
-                row[8] = timestamp
-                updated = True
-            data.append(row)
-
-    if updated:
-        with open('loginInfo.csv', 'w', newline='') as file:
-            csvwriter = csv.writer(file)
-            csvwriter.writerows(data)
-    return updated
+def update_lock_state_in_db():
+    
+    update = {
+        "$set": {
+            "accountLocked": "Unlocked",
+            "lockTimestamp": datetime.now()
+        }
+    }
+    userData.update_many({'_id': getSessionID()}, update)
+    return True
 
 
 @app.route('/unlock_account', methods=['POST'])
@@ -726,31 +693,21 @@ def verify_and_unlock_account(email, master_password):
     return unlocked
 
 
-def lock_account_in_csv(email, lock_duration):
-    data = []
-    locked = False
-    lock_duration_in_minutes = int(lock_duration) * 10  # Convert lock duration to minutes
+def lock_account_in_db(lock_duration):
+    locked = True
+    lock_duration_in_minutes = int(lock_duration)  # Convert lock duration to minutes
+    print("Time Now: ", datetime.now())
+    print("Lock time: ", datetime.timedelta(minutes=lock_duration_in_minutes))
 
-    with open('loginInfo.csv', 'r', newline='') as file:
-        csvreader = csv.reader(file)
-        for row in csvreader:
-            if row and row[1] == email:
-                locked = True
-                current_timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                if len(row) >= 9:  # Check if row has enough elements
-                    row[6] = 'Locked'
-                    row[7] = str(lock_duration_in_minutes)
-                    row[8] = current_timestamp
-                else:
+    datetime.
 
-                    row += ['Locked', str(lock_duration_in_minutes), current_timestamp]
-            data.append(row)
-
-    # Rewrite the CSV file with the updated data
-    if locked:
-        with open('loginInfo.csv', 'w', newline='') as file:
-            csvwriter = csv.writer(file)
-            csvwriter.writerows(data)
+    update = {
+        "$set": {
+            "accountLocked": "Locked",
+            "lockTimestamp": datetime.now()
+        }
+    }
+    userData.update_many({'_id': getSessionID()}, update)
 
     return locked
 
@@ -758,7 +715,7 @@ def lock_account_in_csv(email, lock_duration):
 
 def store_pin(email, pin):
     temporary_2fa_storage[email] = {
-        'pin': pin, 'timestamp': datetime.datetime.now()
+        'pin': pin, 'timestamp': datetime.now()
     }
 
 
@@ -767,7 +724,7 @@ def is_valid_pin(email, entered_pin):
     print("Stored PIN data for", email, ":", pin_data)  # Log stored PIN data
 
     if pin_data and str(pin_data['pin']) == str(entered_pin):
-        time_diff = datetime.datetime.now() - pin_data['timestamp']
+        time_diff = datetime.now() - pin_data['timestamp']
         if time_diff.total_seconds() <= 600:  # 10 minutes validity
             return True
     return False
