@@ -3,7 +3,7 @@ from flask_mail import Mail, Message
 from forms import RegistrationForm, LoginForm
 from dotenv import load_dotenv
 from encryption import encrypt, decrypt
-from datetime import datetime
+from datetime import datetime, timedelta
 from pymongo import MongoClient
 import random, string, csv, os
 
@@ -42,9 +42,6 @@ mail = Mail(app)
 
 
 
-def getSessionID():
-    return sessionID
-
 def setSessionID(userID):
     global sessionID
     sessionID = userID
@@ -81,7 +78,7 @@ def generate_password(keyword, length, use_numbers, use_symbols):
 
 
 def getPasswords():
-    findPost = userPasswords.find_one({'_id': getSessionID()})
+    findPost = userPasswords.find_one({'_id': sessionID})
     userList = []
     currentList = []
 
@@ -216,7 +213,7 @@ def login():
                 if email == postEmail and password == postPassword:
 
                     setSessionID(findPost["_id"])
-                    print(getSessionID())
+                    print(sessionID)
 
                     if findPost["masterPassword"] == None:
                             if request.is_json:
@@ -313,7 +310,7 @@ def master_password():
 
     email = session.get('email')
 
-    findPost = userData.find_one({"_id": getSessionID()})
+    findPost = userData.find_one({"_id": sessionID})
 
     # Check if the user is logged in and if the account is locked
     if email:
@@ -331,7 +328,7 @@ def master_password():
         master_password = request.form['master_password']
 
         # Save the encrypted master password to the user's account
-        userData.update_one({"_id": getSessionID()}, {"$set": {"masterPassword": master_password}})
+        userData.update_one({"_id": sessionID}, {"$set": {"masterPassword": master_password}})
 
         # Flash a success message
         flash('Master password set up successfully!', 'success')
@@ -363,13 +360,13 @@ def addPassword():
 
 def saveNewPassword(website, email, password):
     
-    searchPasswords = userPasswords.find_one({"_id": getSessionID()})
+    searchPasswords = userPasswords.find_one({"_id": sessionID})
 
     i = 1
     post = {}
 
     if searchPasswords == None:
-        userPasswords.insert_one({"_id": getSessionID()})
+        userPasswords.insert_one({"_id": sessionID})
 
 
     while True:
@@ -472,7 +469,7 @@ def resetPassword(username, newPassword):
 @app.route('/passwordList', methods=['GET'])
 def passwordList():
     if 'username' in session:
-        findPost = userData.find_one({'_id': getSessionID()})
+        findPost = userData.find_one({'_id': sessionID})
 
         if findPost.get('accountLocked') == "Locked":
             print("Account is Locked")
@@ -558,14 +555,14 @@ def disable_2fa():
 
 
 def update_2fa_status(status):
-    userData.update_one({"_id": getSessionID()}, {"$set": {"2FA": status}})
+    userData.update_one({"_id": sessionID}, {"$set": {"2FA": status}})
     return status
 
 
 @app.route('/get_2fa_status')
 def get_2fa_status():
     if 'username' in session:
-        findPost = userData.find_one({'_id': getSessionID()})
+        findPost = userData.find_one({'_id': sessionID})
         print("2FA Status:", findPost['2FA'])
         two_fa_status = findPost['2FA']
         return jsonify({'2fa_enabled': two_fa_status})
@@ -619,9 +616,8 @@ def lock_account():
 
 @app.route('/check_lock', methods=['GET'])
 def check_lock():
-    findPost = userData.find_one({'_id': getSessionID()})
-    lock_state = findPost['accountLocked']
-    unlock_timestamp = findPost['lockTimestamp']
+    findPost = userData.find_one({'_id': sessionID})
+    lock_state, unlock_timestamp = get_lock_state_from_db(findPost['email'])
     current_time = datetime.now()
 
     # Check if there's an unlock timestamp and convert it to a datetime object
@@ -630,24 +626,37 @@ def check_lock():
     # else:
     #     unlock_time = None
 
-    if lock_state == 'Locked' and current_time > unlock_timestamp:
-        return jsonify({'locked': True, 'unlock_time': unlock_timestamp.strftime('%Y-%m-%d %H:%M:%S')})
+    if lock_state == 'Locked' and unlock_timestamp and current_time < unlock_timestamp:
+        return jsonify({'locked': True, 'unlock_time': unlock_timestamp})
     else:
-        update_lock_state_in_db()
+        update_lock_state_in_db(findPost['email'], 'Unlocked')
         return jsonify({'locked': False})
 
 
 
-def update_lock_state_in_db():
-    
+def get_lock_state_from_db(email):
+    findPost = userData.find_one({'_id': sessionID})
+
+    if findPost['email'] == email:
+        return findPost['accountLocked'], findPost['lockTimestamp']
+
+    return 'Unlocked', datetime.now()  # Default to 'Unlocked' if not found
+
+
+
+def update_lock_state_in_db(email, lock_state):
+    findPost = userData.find_one({'_id': sessionID})
+
     update = {
-        "$set": {
-            "accountLocked": "Unlocked",
-            "lockTimestamp": datetime.now()
+            "$set": {
+                "accountLocked": lock_state,
+                "lockTimestamp": datetime.now()
+            }
         }
-    }
-    userData.update_many({'_id': getSessionID()}, update)
-    return True
+
+    if findPost['email'] == email:
+        userData.update_many({'_id': sessionID}, update)
+
 
 
 @app.route('/unlock_account', methods=['POST'])
@@ -657,7 +666,7 @@ def unlock_account():
     master_password = data.get('master_password')
 
     # check master password and update lock status in CSV
-    success = verify_and_unlock_account(email, master_password)
+    success = verify_and_unlock_account(master_password)
 
     if success:
         # Clear lock state from the session
@@ -668,46 +677,30 @@ def unlock_account():
         return jsonify({'status': 'error', 'message': 'Incorrect master password'}), 401
 
 
-def verify_and_unlock_account(email, master_password):
-    data = []
+
+def verify_and_unlock_account(master_password):
     unlocked = False
+    findPost = userData.find_one({'_id': sessionID})
 
-    with open('loginInfo.csv', 'r', newline='') as file:
-        csvreader = csv.reader(file)
-        for row in csvreader:
-            if row and row[1] == email:
-
-                if row[5] == master_password:
-                    unlocked = True
-                    row[6] = 'Unlocked'
-                    row[7] = 'empty'  # Set lock duration to 'empty'
-                    row[8] = 'empty'  # Set lock timestamp to 'empty'
-            data.append(row)
-
-    # Rewrite the CSV file with the updated data
-    if unlocked:
-        with open('loginInfo.csv', 'w', newline='') as file:
-            csvwriter = csv.writer(file)
-            csvwriter.writerows(data)
+    if findPost['masterPassword'] == master_password:
+        userData.update_one(findPost, {"$set": {"accountLocked": "Unlocked"}})
+        unlocked = True
 
     return unlocked
+
 
 
 def lock_account_in_db(lock_duration):
     locked = True
     lock_duration_in_minutes = int(lock_duration)  # Convert lock duration to minutes
-    print("Time Now: ", datetime.now())
-    print("Lock time: ", datetime.timedelta(minutes=lock_duration_in_minutes))
-
-    datetime.
 
     update = {
         "$set": {
             "accountLocked": "Locked",
-            "lockTimestamp": datetime.now()
+            "lockTimestamp": datetime.now() + timedelta(minutes=lock_duration_in_minutes)
         }
     }
-    userData.update_many({'_id': getSessionID()}, update)
+    userData.update_many({'_id': sessionID}, update)
 
     return locked
 
