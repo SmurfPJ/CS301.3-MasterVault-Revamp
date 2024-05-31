@@ -78,15 +78,20 @@ def generate_password(keyword, length, use_numbers, use_symbols):
 
 
 def getPasswords():
-    findPost = userPasswords.find_one({'_id': sessionID})
+    searchPasswords = userPasswords.find_one({'_id': sessionID})
     userList = []
     currentList = []
 
-    if not findPost:
+    searchPasswords = userPasswords.find_one({"_id": sessionID})
+
+    if searchPasswords == None:
+        userPasswords.insert_one({"_id": sessionID})
+
+    if not searchPasswords:
         print("No userData found")
         return []
 
-    for key, value in findPost.items():
+    for key, value in searchPasswords.items():
         if key == '_id':
             continue  # Skip the '_id' key
 
@@ -308,9 +313,8 @@ def register():
 @app.route('/master_password', methods=['GET', 'POST'])
 def master_password():
 
-    email = session.get('email')
-
     findPost = userData.find_one({"_id": sessionID})
+    email = findPost['email']
 
     # Check if the user is logged in and if the account is locked
     if email:
@@ -402,83 +406,87 @@ def saveNewPassword(website, email, password):
 @app.route('/passwordView/<website>/<email>/<password>', methods=['GET', 'POST'])
 def passwordView(website, email, password):
     if request.method == 'POST':
-        username = session['username']
         newWebsite = request.form['website']
         newEmail = request.form['email']
         newPassword = request.form['password']
-        saveChanges(username, website, email, password, newEmail, newPassword, newWebsite)
+        updatePassword(website, email, password, newEmail, newPassword, newWebsite)
         return redirect(url_for('passwordList'))
     return render_template('passwordView.html', website=website, email=email, password=password)
 
 
 
-def saveChanges(username, old_website, old_email, old_password, new_website, new_email, new_password):
-    data = []
-    with open('userData.csv', 'r', newline='') as file:
-        csvreader = csv.reader(file)
-        for row in csvreader:
-            if row and row[0] == username:
-                for webIdx in range(int((len(row) - 1) / 3)):
-                    if row[webIdx * 3 + 1] == old_website and row[webIdx * 3 + 2] == old_email and row[
-                        webIdx * 3 + 3] == old_password:
-                        row[webIdx * 3 + 1] = new_website
-                        row[webIdx * 3 + 2] = new_email
-                        row[webIdx * 3 + 3] = new_password
-            data.append(row)
+def updatePassword(oldWebsite, oldEmail, oldPassword, newWebsite, newEmail, newPassword):
 
-    with open('userData.csv', 'w', newline='') as file:
-        csvwriter = csv.writer(file)
-        csvwriter.writerows(data)
+    searchPasswords = userPasswords.find_one({'_id': sessionID})
 
-    # print(data)
+    # Find the document with the specified sessionID and the old password details
+    if not searchPasswords:
+        print("No passwords found for the user.")
+        return
+
+    # Iterate through the user's passwords to find the one that matches the old values
+    i = 1
+    updated = False
+    while True:
+        websiteKey = f"Website{i}"
+        emailKey = f"Email{i}"
+        passwordKey = f"Password{i}"
+
+        if websiteKey not in searchPasswords:
+            break  # Exit the loop if the website key does not exist
+
+        if (searchPasswords[websiteKey] == oldWebsite and 
+            searchPasswords[emailKey] == oldEmail and 
+            searchPasswords[passwordKey] == oldPassword):
+            
+            # Update the values
+            userPasswords.update_one(
+                {"_id": sessionID},
+                {"$set": {
+                    websiteKey: newWebsite,
+                    emailKey: newEmail,
+                    passwordKey: newPassword
+                }}
+            )
+            updated = True
+            break
+
+        i += 1
+
+    if not updated:
+        print("The specified password was not found and could not be updated.")
+
 
 
 @app.route('/resetPassword', methods=['GET', 'POST'])
 def resetPassword():
-    if request.method == 'POST':
-        master_password = request.form['newPassword']
-        username = session['username']
-
-        resetPassword(username, master_password)
-
+    if request.method == 'POST':    
+        newPassword = request.form['newPassword']
+        
+        userData.update_one({"_id": sessionID}, {"$set": {"loginPassword": newPassword}})
+        
         return redirect(url_for('passwordList'))
 
     return render_template('resetPassword.html')
 
 
-def resetPassword(username, newPassword):
-    data = []
-    updated = False
-    with open('loginInfo.csv', 'r', newline='') as file:
-        csvreader = csv.reader(file)
-        for row in csvreader:
-            if row and row[0] == username:
-                if len(row) < 6:
-                    row.append(newPassword)
-                else:
-                    row[3] = newPassword
-                updated = True
-            data.append(row)
-
-    if updated:
-        with open('loginInfo.csv', 'w', newline='') as file:
-            csvwriter = csv.writer(file)
-            csvwriter.writerows(data)
-
 
 @app.route('/passwordList', methods=['GET'])
 def passwordList():
+
+    findPost = userData.find_one({'_id': sessionID})
+
     if 'username' in session:
-        findPost = userData.find_one({'_id': sessionID})
 
         if findPost.get('accountLocked') == "Locked":
             print("Account is Locked")
             return redirect(url_for('lockedPasswordList'))
         elif findPost.get('accountLocked') == "Unlocked":
             userPasswordList = getPasswords()
-            print("Name: ", userPasswordList[0][2])
-            print("Name: ", userPasswordList[0][4])
-            print("Name: ", userPasswordList[0][7])
+
+            if not userPasswordList:
+                return render_template('passwordList.html', passwords=[])
+            
             return render_template('passwordList.html', passwords=userPasswordList)
     else:
         flash('Please log in to access your passwords.', 'warning')
@@ -563,6 +571,7 @@ def update_2fa_status(status):
 def get_2fa_status():
     if 'username' in session:
         findPost = userData.find_one({'_id': sessionID})
+
         print("2FA Status:", findPost['2FA'])
         two_fa_status = findPost['2FA']
         return jsonify({'2fa_enabled': two_fa_status})
@@ -725,6 +734,9 @@ def is_valid_pin(email, entered_pin):
 
 @app.route('/delete_account', methods=['POST'])
 def delete_account():
+
+    findPost = userPasswords.find_one({'_id': sessionID})
+
     # Check if the user is authenticated
     if 'email' not in session:
         return jsonify({"success": False, "message": "User not logged in."}), 401
@@ -732,22 +744,15 @@ def delete_account():
     email = session['email']
 
     # Initialize variables
-    data = []
     account_deleted = False
 
-    with open('loginInfo.csv', 'r', newline='') as file:
-        csvreader = csv.reader(file)
-        for row in csvreader:
-            if row[1] != email:
-                data.append(row)
-            else:
-                account_deleted = True
+    if email == findPost['email']:
+        userData.delete_one({'_id': sessionID})
+        userPasswords.delete_one({'_id': sessionID})
+        account_deleted = True
 
-        # Write the updated data back to the CSV file
+
     if account_deleted:
-        with open('loginInfo.csv', 'w', newline='') as file:
-            csvwriter = csv.writer(file)
-            csvwriter.writerows(data)
 
         # Clear the user's session and log them out
         session.pop('email', None)

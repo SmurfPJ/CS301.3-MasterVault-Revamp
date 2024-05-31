@@ -62,17 +62,17 @@ def decrypt(key, ciphertext):
     plaintext = unpad(cipher.decrypt(ciphertext[16:]))
     return plaintext.decode('utf-8')
 
-# Example usage
-key = b'\x1170T;o\x80I\x17G3=\xcd\xd1j\xc1\x0e\xeb\x9dP-\xe8\x08Z_x\xf8\x9bh\x7f\xa8\xc5' #get_random_bytes(32)  # AES-256 key must be 32 bytes
-plaintext = "This is a test for MongoDB."
+# # Example usage
+# key = b'\x1170T;o\x80I\x17G3=\xcd\xd1j\xc1\x0e\xeb\x9dP-\xe8\x08Z_x\xf8\x9bh\x7f\xa8\xc5' #get_random_bytes(32)  # AES-256 key must be 32 bytes
+# plaintext = "This is a test for MongoDB."
 
-# print(f"Key: {key}")
+# # print(f"Key: {key}")
 
-ciphertext = "ny8h8YpQc6Xnq06ce+1KhdtpVgMA/WwsVdfXdGGNaKENdaTOFiH4XJKsZy/u4arF"#encrypt(key, plaintext)
-print(f"Ciphertext: {ciphertext}")
+# ciphertext = "ny8h8YpQc6Xnq06ce+1KhdtpVgMA/WwsVdfXdGGNaKENdaTOFiH4XJKsZy/u4arF"#encrypt(key, plaintext)
+# print(f"Ciphertext: {ciphertext}")
 
-decrypted = decrypt(key, ciphertext)
-print(f"Decrypted: {decrypted}")
+# decrypted = decrypt(key, ciphertext)
+# print(f"Decrypted: {decrypted}")
 
 # def main():
 #     plain_text = input("Password: ")
