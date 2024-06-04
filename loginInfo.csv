@@ -1,1 +1,4 @@
+Username,Email,DOB,Password,2FA,MasterPassword,LockStatus,LockDuration(min),LockTime
+Conor,smurfpj18@gmail.com,2004-02-17,b'gAAAAABl947BieFPjk3suE5fVWGXWUDXCxjij2spF-tJjDRfUH3LbkeOavPvN0Be4e8JrEwcA-UfIO_uaHX6QzuoUki6GfRvqA==',Enabled,b'gAAAAABmTpid7k3Jzo_23zRG9kqyvw7CnOWSvz2NC4VevFf8XREoU-NTOnCOsSinyFcgGvV1raJTfrHgwkPtvkmvjsAzmCexFA==',Unlocked,empty,empty
 peterlee,peter@hotmail.com,1980-04-12,b'gAAAAABmWTF6og8bUOKFa-aAsE-UrFmYGzP_R1otsWJ2Gxh7jxenf201Ip9qmLSzTwpxRJTabRFIq_dGCF1Kk3PeJLZoMGEePw==',personal,b'gAAAAABmWTJx0fvRyvpcJS_IpQrKzMlD9NuVWZFo8B5HaR1dFBWvTIoclTml6sHMhJW3nUx7G0LIFfgGqC7yKWj5i8nmcfRUGA==',empty,Unlocked,empty,empty,chicken
+Smurf,smurfpj18@gmail.com,2004-02-17,b'gAAAAABmTph-aF3SN7JBVhragMqQpUYeMumyhR0q85qveLAq9V--1CQXA73yeY6l46hToICbqSY6DjmH2ajo00PUq8rgK0tc4Q==',Enabled,b'gAAAAABmTpid7k3Jzo_23zRG9kqyvw7CnOWSvz2NC4VevFf8XREoU-NTOnCOsSinyFcgGvV1raJTfrHgwkPtvkmvjsAzmCexFA==',Unlocked,empty,empty

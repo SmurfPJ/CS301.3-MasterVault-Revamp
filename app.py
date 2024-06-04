@@ -470,6 +470,7 @@ def passwordList():
                         return redirect(url_for('lockedPasswordList'))
                     else:
                         user_passwords = get_passwords(username)
+                        print(user_passwords)
                         return render_template('passwordList.html', passwords=user_passwords)
 
     else:
