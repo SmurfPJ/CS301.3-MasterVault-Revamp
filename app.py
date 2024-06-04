@@ -13,6 +13,7 @@ client = MongoClient('mongodb+srv://Conor:M0ng0DB1@mastervaultdb1.g1a7o98.mongod
 db = client.MasterVault
 userData = db["userData"]
 userPasswords = db["userPasswords"]
+temporary_2fa_storage = {} # Temporary storage for 2FA codes
 
 # Encrypt data
 # def encryptData():
@@ -187,65 +188,31 @@ def handle_create_password():
 def login():
     cform = LoginForm()
     if request.method == 'POST':
-        email = None
-        password = None
-
-        # Check if the request is JSON (from the extension)
-        if request.is_json:
-            data = request.get_json()
-            email = data.get('email')
-            password = data.get('password')
-        else:
-            # Handle form submission (from the web app)
-            cform = LoginForm()
-            if cform.validate_on_submit():
-                email = cform.email.data
-                password = cform.password.data
-            else:
-                return render_template("login.html", form=cform)
+        email = cform.email.data
 
         # Ensure that email and password are not None
-        if email is not None and password is not None:
+        if email is not None:
 
-            findPost = userData.find_one({"email": email, "loginPassword": password})
+            findPost = userData.find_one({"email": email})
 
             print(findPost)
 
             if findPost:
                 
                 postEmail = findPost["email"]
-                postPassword = findPost["loginPassword"]
 
-                if email == postEmail and password == postPassword:
+                if email == postEmail:
 
                     setSessionID(findPost["_id"])
                     print(sessionID)
+                                    
+                    session['username'] = findPost["username"]
+                    session['email'] = email
+                    # session['_id'] = findPost['_id']
+                    return redirect(url_for('animalIDVerification'))
 
-                    if findPost["masterPassword"] == None:
-                            if request.is_json:
-                                # JSON response indicating master password setup is needed
-                                return jsonify(
-                                    {"status": "setup_master_password", "message": "Master password setup required"})
-                            else:
-                                session['username'] = findPost["username"]
-                                session['email'] = email
-                                return redirect(url_for('master_password'))
-                
-                if email == postEmail and password == postPassword:
-                    if request.is_json:
-                        return jsonify({"status": "success", "username": findPost["username"], "email": email})
-                    else:
-                        session['username'] = findPost["username"]
-                        session['email'] = email
-                        return redirect(url_for('passwordList'))
-
-            # Handle invalid email or password
-            error_message = "Invalid email or password"
-            if request.is_json:
-                return jsonify({"status": "failure", "message": error_message}), 401
-            else:
-                flash(error_message)
-                return render_template("login.html", form=cform)
+            flash("Invalid email")
+            return render_template("login.html", form=cform)
 
     return render_template("login.html", form=LoginForm())
 
@@ -265,11 +232,13 @@ def aboutUs():
     return render_template('aboutUs.html')
 
 
+
 @app.route('/animalID_verification', methods=['GET', 'POST'])
 def animalIDVerification():
+    findPost = userData.find_one({"_id": sessionID})
     available_animals = ['giraffe', 'dog', 'chicken', 'monkey', 'peacock', 'tiger']
 
-    selected_animal = session.get('selected_animal')
+    selected_animal = findPost['animalID']
     if selected_animal not in available_animals:
         selected_animal = random.choice(available_animals)
 
@@ -277,11 +246,8 @@ def animalIDVerification():
         password = request.form.get('password')
         security_check = request.form.get('securityCheck')
 
-        account_password = session.get('account_password')
-        master_password_set = session.get('master_password_set')
-
-        if security_check and password == decrypt(account_password):
-            if master_password_set.lower() == 'empty':
+        if security_check and password == findPost['loginPassword']:
+            if findPost['masterPassword'] == None:
                 return redirect(url_for('master_password'))
             else:
                 return redirect(url_for('passwordList'))
@@ -292,12 +258,53 @@ def animalIDVerification():
 
 
 
+@app.route('/choose_animal', methods=['GET', 'POST'])
+def animal_id():
+    form = AnimalSelectionForm()
+
+    if form.validate_on_submit():
+        selected_animal = form.animal.data
+        # user_email = findPost['email']  # Assuming you have the user's email stored in session
+
+        userData.update_one({"_id": sessionID}, {"$set": {"animalID": selected_animal}})
+
+        # # Update CSV with selected animal
+        # updated = False
+        # data = []
+        # with open('loginInfo.csv', 'r', newline='') as file:
+        #     csvreader = csv.reader(file)
+        #     for row in csvreader:
+        #         if row and row[1] == user_email:
+        #             if len(row) >= 11:
+        #                 row[10] = selected_animal  # Update selected animal if already present
+        #             else:
+        #                 row.append(selected_animal)  # Add selected animal if not present
+        #             updated = True
+        #         data.append(row)
+
+        # if updated:
+        #     with open('loginInfo.csv', 'w', newline='') as file:
+        #         csvwriter = csv.writer(file)
+        #         csvwriter.writerows(data)
+        # else:
+        #     # If user not found, append a new row
+        #     with open('loginInfo.csv', 'a', newline='') as file:
+        #         csvwriter = csv.writer(file)
+        #         csvwriter.writerow([user_email, selected_animal])
+
+        return redirect(url_for('login'))
+
+    return render_template('animal_ID.html', form=form)
+
+
+
 def send_2fa_verification_email(email, pin):
     msg = Message("Your MasterVault 2FA PIN",
                   sender='nickidummyacc@gmail.com',
                   recipients=[email])
     msg.body = f'Your 2FA verification PIN is: {pin}'
     mail.send(msg)
+
 
 
 def send_verification_email(email):
@@ -333,49 +340,15 @@ def register():
 
         userData.insert_one(post)
 
+        findPost = userData.find_one(post)
+        setSessionID(findPost['_id'])
+
         # Send verification email after successfully saving account details
         send_verification_email(cform.email.data)
 
         flash('Account created successfully! An email will be sent to you.', 'success')
-        return redirect(url_for('login'))
+        return redirect(url_for('animal_id'))
     return render_template("register.html", form=cform)
-
-
-
-@app.route('/choose_animal', methods=['GET', 'POST'])
-def animal_id():
-    form = AnimalSelectionForm()
-    if form.validate_on_submit():
-        selected_animal = form.animal.data
-        user_email = session.get('email')  # Assuming you have the user's email stored in session
-
-        # Update CSV with selected animal
-        updated = False
-        data = []
-        with open('loginInfo.csv', 'r', newline='') as file:
-            csvreader = csv.reader(file)
-            for row in csvreader:
-                if row and row[1] == user_email:
-                    if len(row) >= 11:
-                        row[10] = selected_animal  # Update selected animal if already present
-                    else:
-                        row.append(selected_animal)  # Add selected animal if not present
-                    updated = True
-                data.append(row)
-
-        if updated:
-            with open('loginInfo.csv', 'w', newline='') as file:
-                csvwriter = csv.writer(file)
-                csvwriter.writerows(data)
-        else:
-            # If user not found, append a new row
-            with open('loginInfo.csv', 'a', newline='') as file:
-                csvwriter = csv.writer(file)
-                csvwriter.writerow([user_email, selected_animal])
-
-        return redirect(url_for('login'))
-
-    return render_template('animal_ID.html', form=form)
 
 
 
@@ -431,10 +404,10 @@ def addPassword():
     return render_template('addPassword.html')
 
 
+
 def saveNewPassword(website, email, password):
     
     searchPasswords = userPasswords.find_one({"_id": sessionID})
-
     i = 1
     post = {}
 
@@ -470,6 +443,7 @@ def saveNewPassword(website, email, password):
 
     newData = {"$set": post}
     userPasswords.update_one(searchPasswords, newData)
+
 
 
 @app.route('/passwordView/<website>/<email>/<password>', methods=['GET', 'POST'])
@@ -562,9 +536,11 @@ def passwordList():
         return redirect(url_for('login'))
 
 
+
 @app.route('/lockedPasswordList', methods=['GET'])
 def lockedPasswordList():
     return render_template('lockedPasswordList.html')
+
 
 
 @app.route('/delete-password', methods=['POST'])
@@ -589,6 +565,7 @@ def delete_password():
         return jsonify({'error': 'Entry not found'}), 404
 
 
+
 def remove_passwordList_entry(username, website, email, password):
     updated_data = []
     entry_found = False
@@ -610,13 +587,11 @@ def remove_passwordList_entry(username, website, email, password):
     return entry_found
 
 
+
 @app.route('/settings', methods=['GET'])
 def settings():
     return render_template('settings.html')
 
-
-# Temporary storage for 2FA codes
-temporary_2fa_storage = {}
 
 
 @app.route('/enable_2fa', methods=['POST'])
@@ -625,15 +600,18 @@ def enable_2fa():
     return jsonify({'message': '2FA has been enabled'}), 200
 
 
+
 @app.route('/disable_2fa', methods=['POST'])
 def disable_2fa():
     update_2fa_status(False)
     return jsonify({'message': '2FA has been disabled'}), 200
 
 
+
 def update_2fa_status(status):
     userData.update_one({"_id": sessionID}, {"$set": {"2FA": status}})
     return status
+
 
 
 @app.route('/get_2fa_status')
@@ -658,6 +636,7 @@ def setup_2fa():
     return jsonify({'message': 'A 2FA PIN has been sent to your email'}), 200
 
 
+
 @app.route('/verify_2fa', methods=['POST'])
 def verify_2fa():
     data = request.get_json()
@@ -674,6 +653,7 @@ def verify_2fa():
         return jsonify({'message': '2FA verification successful!'}), 200
     else:
         return jsonify({'message': 'Invalid or expired PIN'}), 400
+
 
 
 @app.route('/lock_account', methods=['POST'])
@@ -790,6 +770,7 @@ def store_pin(email, pin):
     }
 
 
+
 def is_valid_pin(email, entered_pin):
     pin_data = temporary_2fa_storage.get(email)
     print("Stored PIN data for", email, ":", pin_data)  # Log stored PIN data
@@ -831,6 +812,7 @@ def delete_account():
         return jsonify({"success": True, "message": "Account successfully deleted."})
     else:
         return jsonify({"success": False, "message": "Account not found."})
+
 
 
 if __name__ == '__main__':
