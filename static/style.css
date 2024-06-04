@@ -44,25 +44,29 @@ body {
 }
 
 .main-container {
-    display: flex; /* This ensures that your main-container uses flexbox */
-    align-items: normal;
+    display: flex;
     height: 100vh;
-    padding-bottom: -00px;
+    overflow: auto;
 }
 
 
 .nav-drawer {
     flex-shrink: 0;
     width: 280px;
+    height: auto;
     background-color: white;
     padding-top: 20px;
+    border-bottom: 2px solid #173356;
     border-right: 2px solid #173356;
+    position: relative;
+    border-radius: 10px;
     box-shadow: 10px 0px 0px 0px #738499;
 }
 
 .navFont {
-font-family: Inter, sans-serif;
-    color: #173356
+font-family: "Montserrat", sans-serif;
+font-weight: bold;
+color: #173356;
 }
 
 
@@ -445,4 +449,114 @@ background-color: #173356;
     margin-top: -380px;
 }
 
+/*AboutUs*/
+
+.aboutUs-container {
+    padding-left: 350px;
+    margin-top: -750px;
+}
+
+.aboutUsFont {
+    font-family: Azeret Mono, monospace;
+    font-weight: bold;
+    color: #173356;
+}
+
+.aboutUsParagraph {
+    font-family: Recursive, sans-serif;
+    font-size: 11pt;
+}
+
+.img-fluid {
+    max-width: 100%;
+    height: auto;
+    max-height: 500px;
+    float: right;
+    padding-right: -300px;
+}
+
+/*Choose Animal ID */
+.chooseAnimalFont {
+    font-family: Azeret Mono, monospace;
+    color: #173356;
+}
+
+.animal-img {
+    width: 300px;
+    height: auto;
+    margin-left: 10px;
+}
+
+.animalFont {
+    font-family: Recursive, sans-serif;
+    font-size: 11pt;
+    font-weight: bold;
+    margin-left: 20px;
+}
+
+.peacock {
+    padding-left: 100px;
+}
+
+.chicken {
+    padding-top: 80px;
+}
+
+.monkey {
+    padding-left: 100px;
+}
+
+.dog {
+    padding-top: 80px;
+}
+
+.dog-img {
+    width: 300px;
+    height: auto;
+    margin-left: 45px;
+}
+
+.tiger {
+    padding-left: 100px;
+}
+
+.tiger-img {
+    width: 300px;
+    height: auto;
+    margin-left: 20px;
+}
+
+.confirmAnimalID {
+    background-color: #173356;
+    border-color: #173356;
+    color: white;
+}
+
+.confirmAnimalID:hover {
+    background-color: #4c8cdb;
+    border-color: #4c8cdb;
+    color: white;
+}
+
+.animalIDButton {
+    justify-content: right;
+    display: flex;
+    padding-top: 80px;
+    padding-right: 50px;
+    padding-bottom: 50px;
+}
+
+
+
+/*Animal ID Verification*/
+#AnimalIDPageLogo {
+    width: 230px;
+    height: auto;
+   margin-top: 80px;
+}
+
+.securityPicture {
+width: 300px;
+    height: auto;
+}
 
