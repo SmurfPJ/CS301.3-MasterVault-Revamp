@@ -18,7 +18,7 @@
     {% endif %}
     </div>
 
- <div class="main-container d-flex">
+ <div class="main-container">
     <nav id="drawer" class="nav-drawer">
         <div class="user-info mt-4">
             {% if session['username'] %}
@@ -30,12 +30,14 @@
                     Email: {{ session['email'] }}
                 </div>
             {% endif %}
+
         </div>
 
 
         <ul class="navFont">
             <li><a href="/passwordList">Passwords</a></li>
             <li><a href="/create_password">Password Generator</a></li>
+            <li><a href="/about">About Us</a></li>
             <li><a href="/settings">Settings</a></li>
         </ul>
     </nav>

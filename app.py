@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_mail import Mail, Message
-from forms import RegistrationForm, LoginForm
+from forms import RegistrationForm, LoginForm, AnimalSelectionForm
 from dotenv import load_dotenv
 from encryption import encrypt, decrypt
 from datetime import datetime
@@ -156,67 +156,30 @@ def handle_create_password():
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
+    cform = LoginForm()
     if request.method == 'POST':
-        email = None
-        password = None
-
-        # Check if the request is JSON (from the extension)
-        if request.is_json:
-            data = request.get_json()
-            email = data.get('email')
-            password = data.get('password')
-        else:
-            # Handle form submission (from the web app)
-            cform = LoginForm()
-            if cform.validate_on_submit():
-                email = cform.email.data
-                password = cform.password.data
-            else:
-                return render_template("login.html", form=cform)
-
-        # Ensure that email and password are not None
-        if email is not None and password is not None:
+        email = cform.email.data
+        if email:
             with open('loginInfo.csv', 'r') as file:
                 csvreader = csv.reader(file)
                 for account in csvreader:
-                    # Ensure account has enough fields
-                    print(account)
-                    padded_account = account + [None] * (9 - len(account))
-                    username, account_email, dob, account_password, _2fa_status, master_password_set, lock_state, lock_duration, lock_timestamp = padded_account
+                    padded_account = account + [None] * (11 - len(account))
+                    username, account_email, dob, account_password, account_type, _2fa_status, master_password_set, lock_state, lock_duration, lock_timestamp, selected_animal = padded_account
+                    if email == account_email:
+                        session['username'] = username
+                        session['email'] = email
+                        session['account_password'] = account_password
+                        session['master_password_set'] = master_password_set
+                        session['selected_animal'] = selected_animal
+                        return redirect(url_for('animalIDVerification'))
 
-                    dob = dob
-                    _2fa_status = _2fa_status
+            flash('Email not found. Please register or try again.', 'warning')
+            return redirect(url_for('login'))
 
-                    if email == account_email and password == decrypt(account_password):
-                        # Check if master password is set
-                        if master_password_set.lower() == 'empty':
-                            # Redirect to master password setup if not set
-                            if request.is_json:
-                                # JSON response indicating master password setup is needed
-                                return jsonify(
-                                    {"status": "setup_master_password", "message": "Master password setup required"})
-                            else:
-                                session['username'] = username
-                                session['email'] = email
-                                return redirect(url_for('master_password'))
+    return render_template("login.html", form=cform)
 
-                    if email == account_email and password == account_password:
-                        if request.is_json:
-                            return jsonify({"status": "success", "username": username, "email": email})
-                        else:
-                            session['username'] = username
-                            session['email'] = email
-                            return redirect(url_for('passwordList'))
 
-        # Handle invalid email or password
-        error_message = "Invalid email or password"
-        if request.is_json:
-            return jsonify({"status": "failure", "message": error_message}), 401
-        else:
-            flash(error_message)
-            return render_template("login.html", form=cform)
 
-    return render_template("login.html", form=LoginForm())
 
 
 @app.route('/logout')
@@ -225,6 +188,37 @@ def logout():
     session.clear()
 
     return redirect(url_for('login'))
+
+@app.route('/about', methods=['GET'])
+def aboutUs():
+
+    return render_template('aboutUs.html')
+
+
+@app.route('/animalID_verification', methods=['GET', 'POST'])
+def animalIDVerification():
+    available_animals = ['giraffe', 'dog', 'chicken', 'monkey', 'peacock', 'tiger']
+
+    selected_animal = session.get('selected_animal')
+    if selected_animal not in available_animals:
+        selected_animal = random.choice(available_animals)
+
+    if request.method == 'POST':
+        password = request.form.get('password')
+        security_check = request.form.get('securityCheck')
+
+        account_password = session.get('account_password')
+        master_password_set = session.get('master_password_set')
+
+        if security_check and password == decrypt(account_password):
+            if master_password_set.lower() == 'empty':
+                return redirect(url_for('master_password'))
+            else:
+                return redirect(url_for('passwordList'))
+
+        flash('Incorrect password or security check not confirmed', 'danger')
+
+    return render_template('animal_IDLogin.html', selected_animal=selected_animal)
 
 
 def send_2fa_verification_email(email, pin):
@@ -254,19 +248,55 @@ def register():
                 cform.email.data,
                 cform.dob.data,
                 encrypt(cform.password.data),
+                cform.account_type.data,
                 'empty',  # Master Password placeholder (to be set later)
                 'empty',  # Default 2FA status
                 'Unlocked',  # Lock state
                 'empty',  # Lock duration
-                'empty'  # Timestamp
+                'empty',  # Timestamp
+                'empty'   # Selected animal placeholder (to be set later)
             ])
-
-            # Send verification email after successfully saving account details
             send_verification_email(cform.email.data)
-
             flash('Account created successfully! An email will be sent to you.', 'success')
-            return redirect(url_for('login'))
+            return redirect(url_for('animal_id'))
     return render_template("register.html", form=cform)
+
+
+@app.route('/choose_animal', methods=['GET', 'POST'])
+def animal_id():
+    form = AnimalSelectionForm()
+    if form.validate_on_submit():
+        selected_animal = form.animal.data
+        user_email = session.get('email')  # Assuming you have the user's email stored in session
+
+        # Update CSV with selected animal
+        updated = False
+        data = []
+        with open('loginInfo.csv', 'r', newline='') as file:
+            csvreader = csv.reader(file)
+            for row in csvreader:
+                if row and row[1] == user_email:
+                    if len(row) >= 11:
+                        row[10] = selected_animal  # Update selected animal if already present
+                    else:
+                        row.append(selected_animal)  # Add selected animal if not present
+                    updated = True
+                data.append(row)
+
+        if updated:
+            with open('loginInfo.csv', 'w', newline='') as file:
+                csvwriter = csv.writer(file)
+                csvwriter.writerows(data)
+        else:
+            # If user not found, append a new row
+            with open('loginInfo.csv', 'a', newline='') as file:
+                csvwriter = csv.writer(file)
+                csvwriter.writerow([user_email, selected_animal])
+
+        return redirect(url_for('login'))
+
+    return render_template('animal_ID.html', form=form)
+
 
 
 @app.route('/master_password', methods=['GET', 'POST'])
@@ -756,6 +786,7 @@ def is_valid_pin(email, entered_pin):
         if time_diff.total_seconds() <= 600:  # 10 minutes validity
             return True
     return False
+
 
 
 @app.route('/delete_account', methods=['POST'])
