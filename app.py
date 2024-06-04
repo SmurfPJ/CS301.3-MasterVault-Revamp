@@ -331,6 +331,7 @@ def register():
                     "DOB": dobTime,
                     "loginPassword": cform.password.data,
                     "animalID": None,
+                    "accountType": cform.account_type.data,
                     "masterPassword": None,
                     "2FA": False,
                     "accountLocked": "Unlocked",
