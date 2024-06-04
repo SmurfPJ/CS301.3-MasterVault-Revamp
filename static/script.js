@@ -636,4 +636,32 @@ function deleteEntry(website, email, password) {
     }
 }
 
+//animal ID
+function toggleSubmitButton() {
+            const submitButton = document.getElementById('submit-button');
+            const radioButtons = document.querySelectorAll('input[name="animal"]');
+            let isChecked = false;
+            radioButtons.forEach((radio) => {
+                if (radio.checked) {
+                    isChecked = true;
+                }
+            });
+            submitButton.disabled = !isChecked;
+        }
+
+function toggleSecurityCheckButton() {
+        const checkBox = document.getElementById('securityCheck');
+        const submitButton = document.getElementById('confirmButton');
+        submitButton.disabled = !checkBox.checked;
+    }
+
+document.addEventListener('DOMContentLoaded', function() {
+    var img = document.querySelector('.animal-img');
+    if (img) {
+        img.addEventListener('click', function(event) {
+            event.stopPropagation();
+        });
+    }
+});
+
 
