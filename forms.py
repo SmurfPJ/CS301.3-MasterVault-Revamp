@@ -3,12 +3,25 @@ from wtforms import *
 from wtforms.validators import DataRequired, EqualTo, Email, Length
 
 class RegistrationForm(FlaskForm):
-    username = StringField('Username',validators=[DataRequired(),Length(min=3,max=50)])
-    email = EmailField('Email',validators=[DataRequired(),Email()])
-    dob = DateField('Date of Birth',validators=[DataRequired()])
-    password = PasswordField('Password',validators=[DataRequired()])
-    confirm_password = PasswordField('Confirm password',validators=[DataRequired(),EqualTo('password')])
+    username = StringField('Username', validators=[DataRequired(), Length(min=3, max=50)])
+    email = EmailField('Email', validators=[DataRequired(), Email()])
+    dob = DateField('Date of Birth', validators=[DataRequired()])
+    password = PasswordField('Password', validators=[DataRequired()])
+    confirm_password = PasswordField('Confirm password', validators=[DataRequired(), EqualTo('password')])
+    account_type = RadioField('Account Type', choices=[('personal', 'Personal'), ('family', 'Family')],
+                              validators=[DataRequired()])
     submit_bn = SubmitField('Register')
+
+class AnimalSelectionForm(FlaskForm):
+    animal = RadioField('Choose Animal ID', choices=[
+        ('giraffe', 'Giraffe'),
+        ('peacock', 'Peacock'),
+        ('chicken', 'Chicken'),
+        ('monkey', 'Monkey'),
+        ('dog', 'Dog'),
+        ('tiger', 'Tiger')
+    ], validators=[DataRequired()])
+    submit = SubmitField('Confirm Animal ID')
 
 class LoginForm(FlaskForm):
     email = StringField('Email',validators=[DataRequired(),Email()])

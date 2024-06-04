@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_mail import Mail, Message
-from forms import RegistrationForm, LoginForm
+from forms import RegistrationForm, LoginForm, AnimalSelectionForm
 from dotenv import load_dotenv
 from encryption import encrypt, decrypt
 from datetime import datetime, timedelta
@@ -185,6 +185,7 @@ def handle_create_password():
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
+    cform = LoginForm()
     if request.method == 'POST':
         email = None
         password = None
@@ -258,6 +259,37 @@ def logout():
 
     return redirect(url_for('login'))
 
+@app.route('/about', methods=['GET'])
+def aboutUs():
+
+    return render_template('aboutUs.html')
+
+
+@app.route('/animalID_verification', methods=['GET', 'POST'])
+def animalIDVerification():
+    available_animals = ['giraffe', 'dog', 'chicken', 'monkey', 'peacock', 'tiger']
+
+    selected_animal = session.get('selected_animal')
+    if selected_animal not in available_animals:
+        selected_animal = random.choice(available_animals)
+
+    if request.method == 'POST':
+        password = request.form.get('password')
+        security_check = request.form.get('securityCheck')
+
+        account_password = session.get('account_password')
+        master_password_set = session.get('master_password_set')
+
+        if security_check and password == decrypt(account_password):
+            if master_password_set.lower() == 'empty':
+                return redirect(url_for('master_password'))
+            else:
+                return redirect(url_for('passwordList'))
+
+        flash('Incorrect password or security check not confirmed', 'danger')
+
+    return render_template('animal_IDLogin.html', selected_animal=selected_animal)
+
 
 
 def send_2fa_verification_email(email, pin):
@@ -307,6 +339,43 @@ def register():
         flash('Account created successfully! An email will be sent to you.', 'success')
         return redirect(url_for('login'))
     return render_template("register.html", form=cform)
+
+
+
+@app.route('/choose_animal', methods=['GET', 'POST'])
+def animal_id():
+    form = AnimalSelectionForm()
+    if form.validate_on_submit():
+        selected_animal = form.animal.data
+        user_email = session.get('email')  # Assuming you have the user's email stored in session
+
+        # Update CSV with selected animal
+        updated = False
+        data = []
+        with open('loginInfo.csv', 'r', newline='') as file:
+            csvreader = csv.reader(file)
+            for row in csvreader:
+                if row and row[1] == user_email:
+                    if len(row) >= 11:
+                        row[10] = selected_animal  # Update selected animal if already present
+                    else:
+                        row.append(selected_animal)  # Add selected animal if not present
+                    updated = True
+                data.append(row)
+
+        if updated:
+            with open('loginInfo.csv', 'w', newline='') as file:
+                csvwriter = csv.writer(file)
+                csvwriter.writerows(data)
+        else:
+            # If user not found, append a new row
+            with open('loginInfo.csv', 'a', newline='') as file:
+                csvwriter = csv.writer(file)
+                csvwriter.writerow([user_email, selected_animal])
+
+        return redirect(url_for('login'))
+
+    return render_template('animal_ID.html', form=form)
 
 
 
@@ -730,6 +799,7 @@ def is_valid_pin(email, entered_pin):
         if time_diff.total_seconds() <= 600:  # 10 minutes validity
             return True
     return False
+
 
 
 @app.route('/delete_account', methods=['POST'])
