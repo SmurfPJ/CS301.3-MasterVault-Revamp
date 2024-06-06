@@ -203,8 +203,9 @@ def login():
 
                 if email == postEmail:
 
-                    setSessionID(findPost["_id"])
-                    print(sessionID)
+                    # setSessionID(findPost["_id"])
+                    setSessionID(findPost['_id']) 
+                    # print(session['id'])
                                     
                     session['username'] = findPost["username"]
                     session['email'] = email
@@ -268,30 +269,6 @@ def animal_id():
 
         userData.update_one({"_id": sessionID}, {"$set": {"animalID": selected_animal}})
 
-        # # Update CSV with selected animal
-        # updated = False
-        # data = []
-        # with open('loginInfo.csv', 'r', newline='') as file:
-        #     csvreader = csv.reader(file)
-        #     for row in csvreader:
-        #         if row and row[1] == user_email:
-        #             if len(row) >= 11:
-        #                 row[10] = selected_animal  # Update selected animal if already present
-        #             else:
-        #                 row.append(selected_animal)  # Add selected animal if not present
-        #             updated = True
-        #         data.append(row)
-
-        # if updated:
-        #     with open('loginInfo.csv', 'w', newline='') as file:
-        #         csvwriter = csv.writer(file)
-        #         csvwriter.writerows(data)
-        # else:
-        #     # If user not found, append a new row
-        #     with open('loginInfo.csv', 'a', newline='') as file:
-        #         csvwriter = csv.writer(file)
-        #         csvwriter.writerow([user_email, selected_animal])
-
         return redirect(url_for('login'))
 
     return render_template('animal_ID.html', form=form)
@@ -324,6 +301,15 @@ def register():
         dob = cform.dob.data
         timeNow = datetime.now()
         dobTime = datetime(year=dob.year, month=dob.month, day=dob.day, hour=0, minute=0, second=0)
+        idCounter = 1
+
+        if cform.account_type.data == "family":
+            for i in userData.find():
+                if 'familyID' in i and isinstance(i['familyID'], int):
+                    idCounter += 1
+        else:
+            idCounter = 0
+        
 
         post = {
                     "username": cform.username.data,
@@ -332,6 +318,7 @@ def register():
                     "loginPassword": cform.password.data,
                     "animalID": None,
                     "accountType": cform.account_type.data,
+                    "familyID": idCounter,
                     "masterPassword": None,
                     "2FA": False,
                     "accountLocked": "Unlocked",
@@ -417,25 +404,31 @@ def saveNewPassword(website, email, password):
 
 
     while True:
-        newName = f"Name{i}"
-        newWebsite = f"Website{i}"
-        newEmail = f"Email{i}"
-        newUsername = f"Username{i}"
-        newAccountNumber = f"AccountNumber{i}"
-        newPin = f"Pin{i}"
-        newDate = f"Date{i}"
-        newPassword = f"Password{i}"
+        newName = f"name{i}"
+        newCreatedDate = f"createdDate{i}"
+        newWebsite = f"website{i}"
+        newEmail = f"email{i}"
+        newUsername = f"username{i}"
+        newAccountNumber = f"accountNumber{i}"
+        newPin = f"pin{i}"
+        newDate = f"date{i}"
+        newPassword = f"password{i}"
+        newOther = f"other{i}"
+        newPasswordLocked = f"passwordLocked{i}"
 
         if newWebsite not in searchPasswords:
             post = {
                     newName: newName,
+                    newCreatedDate: datetime.now(),
                     newWebsite: website,
                     newEmail: email,
                     newUsername: None,
                     newAccountNumber: None,
                     newPin: None,
                     newDate: None,
-                    newPassword: password
+                    newPassword: password,
+                    newOther: None,
+                    newPasswordLocked: False
                 }
             break
         i += 1
