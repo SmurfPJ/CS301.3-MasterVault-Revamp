@@ -2,12 +2,10 @@ from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
 from Crypto.Random import get_random_bytes
 import base64
-import os
 
 SALT_SIZE = 16
 KEY_SIZE = 32
 ITERATIONS = 100000
-passphrase = "This is a test Key"
 
 def pad(data):
     pad_len = 16 - (len(data) % 16)
@@ -18,6 +16,7 @@ def unpad(data):
     return data[:-pad_len]
 
 def derive_key(salt):
+    passphrase = "This is a test Key"
     return PBKDF2(passphrase, salt, dkLen=KEY_SIZE, count=ITERATIONS)
 
 
@@ -40,13 +39,13 @@ def decrypt(ciphertext):
     return plaintext.decode('utf-8')
 
 
-def main():
-    plainText = input("Password: ")
+# def main():
+#     plainText = input("Password: ")
 
-    encrypted = encrypt(plainText)
-    print("Encrypted: ", encrypted)
+#     encrypted = encrypt(plainText)
+#     print("Encrypted: ", encrypted)
 
-    decrypted = decrypt(encrypted)
-    print("Decrypted: ", decrypted)
+#     decrypted = decrypt(encrypted)
+#     print("Decrypted: ", decrypted)
 
 # main()

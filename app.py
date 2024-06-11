@@ -8,8 +8,8 @@ from pymongo import MongoClient
 import random, string, csv, os
 
 # Constants
-ACCOUNT_METADATA_LENGTH = 8
-client = MongoClient('mongodb+srv://Conor:M0ng0DB1@mastervaultdb1.g1a7o98.mongodb.net/?retryWrites=true&w=majority&appName=MasterVaultDB1')
+ACCOUNT_METADATA_LENGTH = 11
+client = MongoClient('mongodb+srv://Conor:M0ng0DB1@mastervaultdb1.g1a7o98.mongodb.net/')
 db = client.MasterVault
 userData = db["userData"]
 userPasswords = db["userPasswords"]
@@ -296,7 +296,10 @@ def send_verification_email(email):
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     cform = RegistrationForm()
+    print("Starting")
     if cform.validate_on_submit():
+
+        print("Started")
             
         dob = cform.dob.data
         timeNow = datetime.now()
@@ -307,6 +310,7 @@ def register():
             for i in userData.find():
                 if 'familyID' in i and isinstance(i['familyID'], int):
                     idCounter += 1
+                    print(idCounter)
         else:
             idCounter = 0
         
@@ -325,6 +329,8 @@ def register():
                     "lockDuration": 'empty',
                     "lockTimestamp": timeNow
                 }
+        
+        print(post)
 
         userData.insert_one(post)
 
@@ -336,6 +342,7 @@ def register():
 
         flash('Account created successfully! An email will be sent to you.', 'success')
         return redirect(url_for('animal_id'))
+    print('ending')
     return render_template("register.html", form=cform)
 
 
