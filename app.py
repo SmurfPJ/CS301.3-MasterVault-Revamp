@@ -49,7 +49,7 @@ def setSessionID(userID):
 
 
 
-def generate_password(keyword, length, use_numbers, use_symbols):
+def generate_password(keyword, length, use_numbers, use_symbols, replace_vowels, replace_most_frequent_vowel, remove_vowels, randomize):
     characters = string.ascii_letters  # Always use letters
 
     if use_numbers:
@@ -61,6 +61,21 @@ def generate_password(keyword, length, use_numbers, use_symbols):
     # Ensure the password is at least as long as the keyword
     if length < len(keyword):
         return ""
+
+    # Apply transformations
+    if replace_vowels:
+        keyword = keyword.replace('a', '@').replace('e', '3').replace('i', '1').replace('o', '0').replace('u', 'u')
+
+    if replace_most_frequent_vowel:
+        most_frequent_vowel = max(set(keyword), key=keyword.count)
+        if most_frequent_vowel in 'aeiou':
+            keyword = keyword.replace(most_frequent_vowel, 'x')
+
+    if remove_vowels:
+        keyword = ''.join([char for char in keyword if char not in 'aeiou'])
+
+    if randomize:
+        keyword = ''.join(random.sample(keyword, len(keyword)))
 
     # Add random characters to the keyword until desired length is reached
     while len(keyword) < length:
@@ -168,19 +183,24 @@ def handle_create_password():
     length = int(request.form.get('length', 8))  # Provide a default value in case it's not set
     use_numbers = 'numbers' in request.form
     use_symbols = 'symbols' in request.form
+    replace_vowels = 'replace_vowels' in request.form
+    replace_most_frequent_vowel = 'replace_most_frequent_vowel' in request.form
+    remove_vowels = 'remove_vowels' in request.form
+    randomize = 'randomize' in request.form
 
     # Validate options and generate password
     if not use_numbers and not use_symbols:
         error = "Please select at least one option: Use Numbers or Use Symbols."
     else:
-        password = generate_password(keyword, length, use_numbers, use_symbols)
+        password = generate_password(keyword, length, use_numbers, use_symbols, replace_vowels, replace_most_frequent_vowel, remove_vowels, randomize)
         strength = check_password_strength(password)
         if not password:
             error = "Failed to generate password. Ensure the keyword is shorter than the desired password length."
 
     # Render the same template with new data
     return render_template('createPassword.html', password=password, strength=strength, error=error, keyword=keyword,
-                           length=length, use_numbers=use_numbers, use_symbols=use_symbols)
+                           length=length, use_numbers=use_numbers, use_symbols=use_symbols, replace_vowels=replace_vowels,
+                           replace_most_frequent_vowel=replace_most_frequent_vowel, remove_vowels=remove_vowels, randomize=randomize)
 
 
 
