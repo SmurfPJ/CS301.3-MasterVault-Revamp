@@ -45,8 +45,7 @@ body {
 
 .main-container {
     display: flex;
-    height: 100vh;
-    overflow: auto;
+    height: 88.4vh;
 }
 
 
