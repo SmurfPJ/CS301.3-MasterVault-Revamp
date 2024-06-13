@@ -15,15 +15,6 @@ userData = db["userData"]
 userPasswords = db["userPasswords"]
 temporary_2fa_storage = {} # Temporary storage for 2FA codes
 
-# Encrypt data
-# def encryptData():
-
-#     file = open('userData.csv')
-#     type(file)
-#     csvreader = csv.reader(file)
-#     for csvAccount in csvreader:
-#         for accountDataIdx in range(len(csvAccount) - 1):
-#                 dataChunk = csvAccount[accountDataIdx + 1]
 
 # Database paths
 writeToLogin = open('loginInfo', 'w')
@@ -368,7 +359,6 @@ def master_password():
     if request.method == 'POST':
         master_password = request.form['master_password']
 
-        # Save the encrypted master password to the user's account
         userData.update_one({"_id": sessionID}, {"$set": {"masterPassword": master_password}})
 
         # Flash a success message
@@ -387,10 +377,6 @@ def addPassword():
         website = request.form['website']
         email = request.form['email']
         password = request.form['password']
-
-        # website = encrypt(website)
-        # email = encrypt(email)
-        # password = encrypt(password)
 
         saveNewPassword(website, email, password)
 
