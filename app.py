@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_mail import Mail, Message
-from forms import RegistrationForm, LoginForm, AnimalSelectionForm
+from forms import RegistrationForm, LoginForm, AnimalSelectionForm, FamilyRegistrationForm
 from dotenv import load_dotenv
 from encryption import encrypt, decrypt
 from datetime import datetime, timedelta
@@ -302,14 +302,16 @@ def send_verification_email(email):
     msg.body = 'Hello, your account has been registered successfully! Thank you for using MasterVault. (This is a test program for a college project)'
     mail.send(msg)
 
-# def send_family_account_request(email, current_user):
-#     msg = Message("Family Account Request",
-#                   sender='nickidummyacc@gmail.com',
-#                   recipients=[email])
-#     # Create a unique link for the user to approve the request
-#     approval_link = f"http://yourdomain.com/approve_family_account?user={current_user}&family_email={email}"
-#     msg.body = f'Hello,\n\n{current_user} has requested to add you to their MasterVault family account.\n Please click the link below to approve the request:\n\n{approval_link}\n\n Thank you for using MasterVault.(This is a test program for a college project)'
-#     mail.send(msg)
+def send_family_account_request(email, current_user):
+    msg = Message("Family Account Request",
+                  sender='nickidummyacc@gmail.com',
+                  recipients=[email])
+    # URL for the family member to register
+    registration_link = url_for('register_family', _external=True)
+    msg.body = (f'Hello,\n\n{current_user} has requested to add you to their MasterVault family account.\n'
+                f'Please click the link below to register:\n\n{registration_link}\n\n'
+                f'Thank you for using MasterVault. (This is a test program for a college project)')
+    mail.send(msg)
 
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -363,6 +365,48 @@ def register():
         return redirect(url_for('animal_id'))
     print('ending')
     return render_template("register.html", form=cform)
+
+@app.route('/register_family', methods=['GET', 'POST'])
+def register_family():
+    form = FamilyRegistrationForm()
+    if form.validate_on_submit():
+        username = form.username.data
+        dob = form.dob.data
+        password = form.password.data
+
+        timeNow = datetime.now()
+        dobTime = datetime(year=dob.year, month=dob.month, day=dob.day, hour=0, minute=0, second=0)
+
+
+        familyID = session.get('familyID', 0)
+
+        post = {
+            "username": username,
+            "email": None,  # No email for family members in this form
+            "DOB": dobTime,
+            "loginPassword": password,
+            "animalID": None,
+            "accountType": 'family',
+            "familyID": familyID,
+            "masterPassword": None,
+            "2FA": False,
+            "accountLocked": "Unlocked",
+            "lockDuration": 'empty',
+            "lockTimestamp": timeNow
+        }
+
+        userData.insert_one(post)
+        findPost = userData.find_one(post)
+        setSessionID(findPost['_id'])
+
+        flash('Family member added successfully!', 'success')
+
+        # Redirect to set up animal ID
+        return redirect(url_for('animal_id'))
+
+    return render_template('registrationAddFamily.html', form=form)
+
+
 
 
 
@@ -616,17 +660,29 @@ def settings():
 def settings_family():
     return render_template('settingsFamily.html')
 
+
 @app.route('/add_family_account', methods=['POST'])
 def add_family_account():
-    if 'username' not in session:
-        return jsonify({"success": False, "message": "User not logged in."}), 403
-
     data = request.get_json()
     family_email = data.get('email')
-    current_user = session['username']
 
+    # Ensure the email is provided
     if not family_email:
-        return jsonify({"success": False, "message": "Email is required."})
+        return jsonify({"success": False, "message": "No email provided"}), 400
+
+    # Assume the current user's email is stored in session
+    current_user_email = session.get('email')
+    current_user = userData.find_one({"email": current_user_email})
+
+    if current_user:
+        current_username = current_user["username"]
+
+        # Send the email to the family member
+        send_family_account_request(family_email, current_username)
+
+        return jsonify({"success": True, "message": "Request sent successfully"})
+    else:
+        return jsonify({"success": False, "message": "Current user not found"}), 404
 
 
 
