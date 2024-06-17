@@ -322,6 +322,62 @@ function update2FAToggle() {
     .catch(error => console.error('Error fetching 2FA status:', error));
 }
 
+function deleteAccount() {
+    if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+        fetch('/delete_account', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                window.location.href = '/';
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+}
+
+// Show the family account input field
+function showFamilyAccountInput() {
+    var familyAccountInput = document.getElementById('familyAccountInput');
+    if (familyAccountInput.style.display === 'none' || familyAccountInput.style.display === '') {
+        familyAccountInput.style.display = 'block';
+    } else {
+        familyAccountInput.style.display = 'none';
+    }
+}
+
+// Add family account function
+function addFamilyAccount() {
+    var familyEmail = document.getElementById('familyEmail').value;
+
+    fetch('/add_family_account', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email: familyEmail })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert("Request sent successfully!");
+            document.getElementById('familyAccountInput').style.display = 'none';
+        } else {
+            alert("Error: " + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+}
 
 
 

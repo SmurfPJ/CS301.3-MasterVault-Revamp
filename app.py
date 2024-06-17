@@ -210,30 +210,21 @@ def login():
     if request.method == 'POST':
         email = cform.email.data
 
-        # Ensure that email and password are not None
-        if email is not None:
-
+        if email:
             findPost = userData.find_one({"email": email})
 
-            print(findPost)
-
             if findPost:
-                
                 postEmail = findPost["email"]
 
                 if email == postEmail:
-
-                    # setSessionID(findPost["_id"])
-                    setSessionID(findPost['_id']) 
-                    # print(session['id'])
-                                    
                     session['username'] = findPost["username"]
                     session['email'] = email
-                    # session['_id'] = findPost['_id']
-                    return redirect(url_for('animalIDVerification'))
+                    session['_id'] = str(findPost['_id'])  # Ensure ID is a string
+
+                    return redirect(url_for('settings'))
 
             flash("Invalid email")
-            return render_template("login.html", form=cform)
+        return render_template("login.html", form=cform)
 
     return render_template("login.html", form=LoginForm())
 
@@ -311,6 +302,14 @@ def send_verification_email(email):
     msg.body = 'Hello, your account has been registered successfully! Thank you for using MasterVault. (This is a test program for a college project)'
     mail.send(msg)
 
+# def send_family_account_request(email, current_user):
+#     msg = Message("Family Account Request",
+#                   sender='nickidummyacc@gmail.com',
+#                   recipients=[email])
+#     # Create a unique link for the user to approve the request
+#     approval_link = f"http://yourdomain.com/approve_family_account?user={current_user}&family_email={email}"
+#     msg.body = f'Hello,\n\n{current_user} has requested to add you to their MasterVault family account.\n Please click the link below to approve the request:\n\n{approval_link}\n\n Thank you for using MasterVault.(This is a test program for a college project)'
+#     mail.send(msg)
 
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -613,23 +612,47 @@ def remove_passwordList_entry(username, website, email, password):
 def settings():
     return render_template('settings.html')
 
+@app.route('/settingsFamily', methods=['GET'])
+def settings_family():
+    return render_template('settingsFamily.html')
+
+@app.route('/add_family_account', methods=['POST'])
+def add_family_account():
+    if 'username' not in session:
+        return jsonify({"success": False, "message": "User not logged in."}), 403
+
+    data = request.get_json()
+    family_email = data.get('email')
+    current_user = session['username']
+
+    if not family_email:
+        return jsonify({"success": False, "message": "Email is required."})
+
 
 
 @app.route('/enable_2fa', methods=['POST'])
 def enable_2fa():
-    update_2fa_status(True)
+    sessionID = session.get('_id')
+    if not sessionID:
+        return jsonify({'message': 'User not logged in'}), 401
+
+    update_2fa_status(sessionID, True)
     return jsonify({'message': '2FA has been enabled'}), 200
 
 
 
 @app.route('/disable_2fa', methods=['POST'])
 def disable_2fa():
-    update_2fa_status(False)
+    sessionID = session.get('_id')
+    if not sessionID:
+        return jsonify({'message': 'User not logged in'}), 401
+
+    update_2fa_status(sessionID, False)
     return jsonify({'message': '2FA has been disabled'}), 200
 
 
 
-def update_2fa_status(status):
+def update_2fa_status(sessionID, status):
     userData.update_one({"_id": sessionID}, {"$set": {"2FA": status}})
     return status
 
@@ -637,19 +660,28 @@ def update_2fa_status(status):
 
 @app.route('/get_2fa_status')
 def get_2fa_status():
-    if 'username' in session:
-        findPost = userData.find_one({'_id': sessionID})
+    sessionID = session.get('_id')
+    if not sessionID:
+        return jsonify({'error': 'User not logged in'}), 401
 
+    findPost = userData.find_one({'_id': sessionID})
+
+    if findPost:
         print("2FA Status:", findPost['2FA'])
         two_fa_status = findPost['2FA']
         return jsonify({'2fa_enabled': two_fa_status})
     else:
-        return jsonify({'error': 'User not logged in'}), 401
+        return jsonify({'error': 'User not found'}), 404
+
 
 
 
 @app.route('/setup_2fa', methods=['POST'])
 def setup_2fa():
+    sessionID = session.get('_id')
+    if not sessionID:
+        return jsonify({'message': 'User not logged in'}), 401
+
     user_email = request.json.get('email')
     pin = random.randint(1000, 9999)
     send_2fa_verification_email(user_email, pin)
@@ -660,15 +692,19 @@ def setup_2fa():
 
 @app.route('/verify_2fa', methods=['POST'])
 def verify_2fa():
+    sessionID = session.get('_id')
+    if not sessionID:
+        return jsonify({'message': 'User not logged in'}), 401
+
     data = request.get_json()
-    print("Received data:", data)  # Log received data
+    print("Received data:", data)
 
     if not data or 'email' not in data or 'pin' not in data:
         return jsonify({'message': 'Email and PIN are required'}), 400
 
     user_email = data['email']
     entered_pin = data['pin']
-    print("Email:", user_email, "Entered PIN:", entered_pin)  # Log specifics
+    print("Email:", user_email, "Entered PIN:", entered_pin)
 
     if is_valid_pin(user_email, entered_pin):
         return jsonify({'message': '2FA verification successful!'}), 200
@@ -677,16 +713,22 @@ def verify_2fa():
 
 
 
+
+
 @app.route('/lock_account', methods=['POST'])
 def lock_account():
     data = request.get_json()
     lock_duration = data.get('lockDuration')
-    success = lock_account_in_db(lock_duration)  # function to lock the account
+    sessionID = session.get('_id')
+
+    if not sessionID:
+        return jsonify({'status': 'error', 'message': 'User not logged in'}), 401
+
+    success = lock_account_in_db(sessionID, lock_duration)
 
     if success:
-        # Store lock state in the session
         session['lock_state'] = 'locked'
-        session['unlock_time'] = datetime.now() + datetime.timedelta(minutes=int(lock_duration))
+        session['unlock_time'] = datetime.now() + timedelta(minutes=int(lock_duration))
         return jsonify({'status': 'success', 'message': 'Account locked'})
     else:
         return jsonify({'status': 'error', 'message': 'Failed to lock account'})
@@ -713,42 +755,37 @@ def check_lock():
 
 
 
-def get_lock_state_from_db(email):
+def get_lock_state_from_db(sessionID):
     findPost = userData.find_one({'_id': sessionID})
-
-    if findPost['email'] == email:
-        return findPost['accountLocked'], findPost['lockTimestamp']
-
-    return 'Unlocked', datetime.now()  # Default to 'Unlocked' if not found
+    if findPost:
+        return findPost['accountLocked'], findPost.get('lockTimestamp')
+    return 'Unlocked', None
 
 
 
-def update_lock_state_in_db(email, lock_state):
-    findPost = userData.find_one({'_id': sessionID})
-
+def update_lock_state_in_db(sessionID, lock_state):
     update = {
-            "$set": {
-                "accountLocked": lock_state,
-                "lockTimestamp": datetime.now()
-            }
+        "$set": {
+            "accountLocked": lock_state,
+            "lockTimestamp": datetime.now()
         }
-
-    if findPost['email'] == email:
-        userData.update_many({'_id': sessionID}, update)
+    }
+    userData.update_one({'_id': sessionID}, update)
 
 
 
 @app.route('/unlock_account', methods=['POST'])
 def unlock_account():
     data = request.get_json()
-    email = session.get('email')  # assuming you store email in session upon login
+    sessionID = session.get('_id')
     master_password = data.get('master_password')
 
-    # check master password and update lock status in CSV
-    success = verify_and_unlock_account(master_password)
+    if not sessionID:
+        return jsonify({'status': 'error', 'message': 'User not logged in'}), 401
+
+    success = verify_and_unlock_account(sessionID, master_password)
 
     if success:
-        # Clear lock state from the session
         session.pop('lock_state', None)
         session.pop('unlock_time', None)
         return jsonify({'status': 'success', 'message': 'Account unlocked'})
@@ -757,31 +794,25 @@ def unlock_account():
 
 
 
-def verify_and_unlock_account(master_password):
-    unlocked = False
+def verify_and_unlock_account(sessionID, master_password):
     findPost = userData.find_one({'_id': sessionID})
-
-    if findPost['masterPassword'] == master_password:
-        userData.update_one(findPost, {"$set": {"accountLocked": "Unlocked"}})
-        unlocked = True
-
-    return unlocked
+    if findPost and findPost['masterPassword'] == master_password:
+        userData.update_one({'_id': sessionID}, {"$set": {"accountLocked": "Unlocked"}})
+        return True
+    return False
 
 
 
-def lock_account_in_db(lock_duration):
-    locked = True
-    lock_duration_in_minutes = int(lock_duration)  # Convert lock duration to minutes
-
+def lock_account_in_db(sessionID, lock_duration):
+    lock_duration_in_minutes = int(lock_duration)
     update = {
         "$set": {
             "accountLocked": "Locked",
             "lockTimestamp": datetime.now() + timedelta(minutes=lock_duration_in_minutes)
         }
     }
-    userData.update_many({'_id': sessionID}, update)
-
-    return locked
+    result = userData.update_one({'_id': sessionID}, update)
+    return result.modified_count > 0
 
 
 
@@ -803,36 +834,34 @@ def is_valid_pin(email, entered_pin):
     return False
 
 
-
 @app.route('/delete_account', methods=['POST'])
 def delete_account():
-
-    findPost = userPasswords.find_one({'_id': sessionID})
-
     # Check if the user is authenticated
     if 'email' not in session:
         return jsonify({"success": False, "message": "User not logged in."}), 401
 
-    email = session['email']
+    # Retrieve the session email
+    session_email = session['email']
 
-    # Initialize variables
-    account_deleted = False
-
-    if email == findPost['email']:
-        userData.delete_one({'_id': sessionID})
-        userPasswords.delete_one({'_id': sessionID})
-        account_deleted = True
+    # Find the user in the database
+    findPost = userData.find_one({'email': session_email})
 
 
-    if account_deleted:
+    if findPost:
+        if session_email == findPost['email']:
+            # Delete the user from the database
+            userData.delete_one({'email': session_email})
 
-        # Clear the user's session and log them out
-        session.pop('email', None)
-        session.pop('username', None)
+            # Clear the user's session and log them out
+            session.clear()
 
-        return jsonify({"success": True, "message": "Account successfully deleted."})
+            return jsonify({"success": True, "message": "Account successfully deleted."})
+        else:
+            return jsonify({"success": False, "message": "Email mismatch."})
     else:
         return jsonify({"success": False, "message": "Account not found."})
+
+
 
 
 

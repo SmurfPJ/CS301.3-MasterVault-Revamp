@@ -1,8 +1,16 @@
-
+import certifi
+import pymongo
 from pymongo import MongoClient
 import csv
 
-client = MongoClient('mongodb+srv://Conor:M0ng0DB1@mastervaultdb1.g1a7o98.mongodb.net/?retryWrites=true&w=majority&appName=MasterVaultDB1')
+connection = MongoClient('mongodb+srv://Conor:M0ng0DB1@mastervaultdb1.g1a7o98.mongodb.net/?retryWrites=true&w=majority&appName=MasterVaultDB1')
+
+client = pymongo.MongoClient(connection, tlsCAFile=certifi.where())
+
+
+
+
+
 
 db = client.MasterVault
 collection1 = db["userData"]
