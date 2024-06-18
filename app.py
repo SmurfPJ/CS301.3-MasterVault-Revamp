@@ -445,17 +445,13 @@ def master_password():
 @app.route('/addPassword', methods=['GET', 'POST'])
 def addPassword():
     if request.method == 'POST':
-        # print("Session Username: ", session['username'])
-        # print("Username: ", username)
         website = request.form['website']
         email = request.form['email']
         password = request.form['password']
 
-        # website = encrypt(website)
-        # email = encrypt(email)
-        # password = encrypt(password)
+        additional_fields = {key: value for key, value in request.form.items() if key not in ['website', 'email', 'password']}
 
-        saveNewPassword(website, email, password)
+        saveNewPassword(website, email, password, additional_fields)
 
         return redirect(url_for('passwordList'))
 
@@ -463,15 +459,15 @@ def addPassword():
 
 
 
-def saveNewPassword(website, email, password):
-    
+
+def saveNewPassword(website, email, password, additional_fields):
     searchPasswords = userPasswords.find_one({"_id": sessionID})
     i = 1
     post = {}
 
-    if searchPasswords == None:
+    if searchPasswords is None:
         userPasswords.insert_one({"_id": sessionID})
-
+        searchPasswords = userPasswords.find_one({"_id": sessionID})  # Re-fetch after insert
 
     while True:
         newName = f"name{i}"
@@ -488,25 +484,25 @@ def saveNewPassword(website, email, password):
 
         if newWebsite not in searchPasswords:
             post = {
-                    newName: newName,
-                    newCreatedDate: datetime.now(),
-                    newWebsite: website,
-                    newEmail: email,
-                    newUsername: None,
-                    newAccountNumber: None,
-                    newPin: None,
-                    newDate: None,
-                    newPassword: password,
-                    newOther: None,
-                    newPasswordLocked: False
-                }
+                newName: f"Password Entry {i}",
+                newCreatedDate: datetime.now(),
+                newWebsite: website,
+                newEmail: email,
+                newUsername: additional_fields.get('username', None),
+                newAccountNumber: additional_fields.get('account_number', None),
+                newPin: additional_fields.get('pin', None),
+                newDate: additional_fields.get('date', None),
+                newPassword: password,
+                newOther: additional_fields.get('other', None),
+                newPasswordLocked: False
+            }
             break
         i += 1
 
     print(post)
 
     newData = {"$set": post}
-    userPasswords.update_one(searchPasswords, newData)
+    userPasswords.update_one({"_id": sessionID}, newData)
 
 
 
