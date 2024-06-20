@@ -662,34 +662,20 @@ def lock_account():
 @app.route('/check_lock', methods=['GET'])
 def check_lock():
     findPost = userData.find_one({'_id': sessionID})
-    lock_state, unlock_timestamp = get_lock_state_from_db(findPost['email'])
+    lock_state = findPost['accountLocked']
+    unlock_timestamp = findPost['lockTimestamp']
     current_time = datetime.now()
 
-    # Check if there's an unlock timestamp and convert it to a datetime object
-    # if unlock_timestamp:
-    #     unlock_time = datetime.strptime(unlock_timestamp, '%Y-%m-%d %H:%M:%S')
-    # else:
-    #     unlock_time = None
-
-    if lock_state == 'Locked' and unlock_timestamp and current_time < unlock_timestamp:
+    if lock_state == 'Locked' and current_time < unlock_timestamp:
         return jsonify({'locked': True, 'unlock_time': unlock_timestamp})
     else:
-        update_lock_state_in_db(findPost['email'], 'Unlocked')
+        update_lock_state_in_db('Unlocked')
         return jsonify({'locked': False})
 
 
 
-def get_lock_state_from_db(email):
-    findPost = userData.find_one({'_id': sessionID})
+def update_lock_state_in_db(lock_state):
 
-    if findPost['email'] == email:
-        return findPost['accountLocked'], findPost['lockTimestamp']
-
-    return 'Unlocked', datetime.now()  # Default to 'Unlocked' if not found
-
-
-
-def update_lock_state_in_db(email, lock_state):
     findPost = userData.find_one({'_id': sessionID})
 
     update = {
@@ -699,8 +685,8 @@ def update_lock_state_in_db(email, lock_state):
             }
         }
 
-    if findPost['email'] == email:
-        userData.update_many({'_id': sessionID}, update)
+    if findPost:
+        userData.update_one({'_id': sessionID}, update)
 
 
 
@@ -739,12 +725,17 @@ def lock_account_in_db(lock_duration):
     locked = True
     lock_duration_in_minutes = int(lock_duration)  # Convert lock duration to minutes
 
+    print(lock_duration)
+
     update = {
         "$set": {
             "accountLocked": "Locked",
             "lockTimestamp": datetime.now() + timedelta(minutes=lock_duration_in_minutes)
         }
     }
+
+    print(update)
+
     userData.update_many({'_id': sessionID}, update)
 
     return locked

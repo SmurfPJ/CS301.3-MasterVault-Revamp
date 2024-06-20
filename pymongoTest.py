@@ -3,7 +3,7 @@ import csv
 
 client = MongoClient('mongodb+srv://Conor:M0ng0DB1@mastervaultdb1.g1a7o98.mongodb.net/?retryWrites=true&w=majority&appName=MasterVaultDB1')
 
-db = client.MasterVault
+db = client.Test
 collection1 = db["userData"]
 collection2 = db["Collection 2"]
 passwords = db["userPasswords"]
@@ -113,12 +113,17 @@ def get_passwords(user_id):
 # get_passwords('66456a65417af5ad6573f760')
 
 
+db = client.Test
+collection1 = db["Collection1"]
 
-def mongodbIf():
+def mongodb():
 
-    print(searchC1.get('accountLocked'))
+    searchC1 = collection1.find_one({"username": "Stuwart"})
 
-    if searchC1.get('accountLocked') == False:
-        print("Statement is detecting False")
+    print(searchC1)
 
-mongodbIf()
+    
+
+    print()
+
+mongodb()
