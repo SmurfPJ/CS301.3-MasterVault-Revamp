@@ -15,15 +15,6 @@ userData = db["userData"]
 userPasswords = db["userPasswords"]
 temporary_2fa_storage = {} # Temporary storage for 2FA codes
 
-# Encrypt data
-# def encryptData():
-
-#     file = open('userData.csv')
-#     type(file)
-#     csvreader = csv.reader(file)
-#     for csvAccount in csvreader:
-#         for accountDataIdx in range(len(csvAccount) - 1):
-#                 dataChunk = csvAccount[accountDataIdx + 1]
 
 # Database paths
 writeToLogin = open('loginInfo', 'w')
@@ -440,7 +431,6 @@ def master_password():
     if request.method == 'POST':
         master_password = request.form['master_password']
 
-        # Save the encrypted master password to the user's account
         userData.update_one({"_id": sessionID}, {"$set": {"masterPassword": master_password}})
 
         # Flash a success message
@@ -829,19 +819,14 @@ def lock_account():
 @app.route('/check_lock', methods=['GET'])
 def check_lock():
     findPost = userData.find_one({'_id': sessionID})
-    lock_state, unlock_timestamp = get_lock_state_from_db(findPost['email'])
+    lock_state = findPost['accountLocked']
+    unlock_timestamp = findPost['lockTimestamp']
     current_time = datetime.now()
 
-    # Check if there's an unlock timestamp and convert it to a datetime object
-    # if unlock_timestamp:
-    #     unlock_time = datetime.strptime(unlock_timestamp, '%Y-%m-%d %H:%M:%S')
-    # else:
-    #     unlock_time = None
-
-    if lock_state == 'Locked' and unlock_timestamp and current_time < unlock_timestamp:
+    if lock_state == 'Locked' and current_time < unlock_timestamp:
         return jsonify({'locked': True, 'unlock_time': unlock_timestamp})
     else:
-        update_lock_state_in_db(findPost['email'], 'Unlocked')
+        update_lock_state_in_db('Unlocked')
         return jsonify({'locked': False})
 
 
@@ -863,6 +848,8 @@ def update_lock_state_in_db(sessionID, lock_state):
     }
     userData.update_one({'_id': sessionID}, update)
 
+    if findPost['email'] == email:
+        userData.update_many({'_id': sessionID}, update)
 
 
 @app.route('/unlock_account', methods=['POST'])
@@ -894,16 +881,24 @@ def verify_and_unlock_account(sessionID, master_password):
 
 
 
-def lock_account_in_db(sessionID, lock_duration):
-    lock_duration_in_minutes = int(lock_duration)
+
+
+def lock_account_in_db(lock_duration):
+    locked = True
+    lock_duration_in_minutes = int(lock_duration)  # Convert lock duration to minutes
+
+    print(lock_duration)
+
     update = {
         "$set": {
             "accountLocked": "Locked",
             "lockTimestamp": datetime.now() + timedelta(minutes=lock_duration_in_minutes)
         }
     }
-    result = userData.update_one({'_id': sessionID}, update)
-    return result.modified_count > 0
+
+    print(update)
+
+    userData.update_many({'_id': sessionID}, update)
 
 
 
