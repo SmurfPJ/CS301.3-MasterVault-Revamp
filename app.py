@@ -445,35 +445,65 @@ def master_password():
 @app.route('/addPassword', methods=['GET', 'POST'])
 def addPassword():
     if request.method == 'POST':
-        website = request.form['website']
-        email = request.form['email']
-        password = request.form['password']
+        if request.form.get('action') == 'generate_password':
+            # Password generator form was submitted
+            keyword = request.form.get('keyword')
+            length = int(request.form.get('length', 8))  # Provide a default value in case it's not set
+            use_numbers = 'numbers' in request.form
+            use_symbols = 'symbols' in request.form
+            replace_vowels = 'replace_vowels' in request.form
+            replace_most_frequent_vowel = 'replace_most_frequent_vowel' in request.form
+            remove_vowels = 'remove_vowels' in request.form
+            randomize = 'randomize' in request.form
 
-        additional_fields = {key: value for key, value in request.form.items() if key not in ['website', 'email', 'password']}
+            # Validate options and generate password
+            if not use_numbers and not use_symbols:
+                error = "Please select at least one option: Use Numbers or Use Symbols."
+            else:
+                password = generate_password(keyword, length, use_numbers, use_symbols, replace_vowels, replace_most_frequent_vowel, remove_vowels, randomize)
+                strength = check_password_strength(password)
+                if not password:
+                    error = "Failed to generate password. Ensure the keyword is shorter than the desired password length."
 
-        saveNewPassword(website, email, password, additional_fields)
+            # Render the same template with new data
+            return render_template('addPassword.html', password=password, strength=strength, error=error, keyword=keyword,
+                                   length=length, use_numbers=use_numbers, use_symbols=use_symbols, replace_vowels=replace_vowels,
+                                   replace_most_frequent_vowel=replace_most_frequent_vowel, remove_vowels=remove_vowels, randomize=randomize)
+        else:
+            # Add password form was submitted
+            website = request.form.get('website')
+            username = request.form.get('username')
+            password = request.form.get('password')
 
-        return redirect(url_for('passwordList'))
+            additional_fields = {
+                'account_number': request.form.get('account_number'),
+                'pin': request.form.get('pin'),
+                'date': request.form.get('date'),
+                'other': request.form.get('other')
+            }
 
+            saveNewPassword(website, username, password, additional_fields)
+            return redirect(url_for('passwordList'))
     return render_template('addPassword.html')
 
 
 
 
-def saveNewPassword(website, email, password, additional_fields):
+
+
+def saveNewPassword(website, username, password, additional_fields):
     searchPasswords = userPasswords.find_one({"_id": sessionID})
     i = 1
     post = {}
 
     if searchPasswords is None:
         userPasswords.insert_one({"_id": sessionID})
-        searchPasswords = userPasswords.find_one({"_id": sessionID})  # Re-fetch after insert
+        searchPasswords = {"_id": sessionID}
 
     while True:
         newName = f"name{i}"
         newCreatedDate = f"createdDate{i}"
         newWebsite = f"website{i}"
-        newEmail = f"email{i}"
         newUsername = f"username{i}"
         newAccountNumber = f"accountNumber{i}"
         newPin = f"pin{i}"
@@ -484,16 +514,15 @@ def saveNewPassword(website, email, password, additional_fields):
 
         if newWebsite not in searchPasswords:
             post = {
-                newName: f"Password Entry {i}",
+                newName: newName,
                 newCreatedDate: datetime.now(),
                 newWebsite: website,
-                newEmail: email,
-                newUsername: additional_fields.get('username', None),
-                newAccountNumber: additional_fields.get('account_number', None),
-                newPin: additional_fields.get('pin', None),
-                newDate: additional_fields.get('date', None),
+                newUsername: username,
+                newAccountNumber: additional_fields.get('account_number'),
+                newPin: additional_fields.get('pin'),
+                newDate: additional_fields.get('date'),
                 newPassword: password,
-                newOther: additional_fields.get('other', None),
+                newOther: additional_fields.get('other'),
                 newPasswordLocked: False
             }
             break
@@ -502,7 +531,8 @@ def saveNewPassword(website, email, password, additional_fields):
     print(post)
 
     newData = {"$set": post}
-    userPasswords.update_one({"_id": sessionID}, newData)
+    userPasswords.update_one(searchPasswords, newData)
+
 
 
 

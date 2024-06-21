@@ -568,3 +568,14 @@ width: 300px;
     background-color: #4c8cdb;
     border-color: #4c8cdb;
 }
+
+.short-input {
+    width: 75%;
+}
+
+
+
+.password-container .password-generator {
+    margin-top: 20px;
+    margin-left: 50px;
+}
