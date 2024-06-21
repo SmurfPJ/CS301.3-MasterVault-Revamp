@@ -831,15 +831,8 @@ def check_lock():
 
 
 
-def get_lock_state_from_db(sessionID):
+def update_lock_state_in_db(lock_state):
     findPost = userData.find_one({'_id': sessionID})
-    if findPost:
-        return findPost['accountLocked'], findPost.get('lockTimestamp')
-    return 'Unlocked', None
-
-
-
-def update_lock_state_in_db(sessionID, lock_state):
     update = {
         "$set": {
             "accountLocked": lock_state,
@@ -848,7 +841,7 @@ def update_lock_state_in_db(sessionID, lock_state):
     }
     userData.update_one({'_id': sessionID}, update)
 
-    if findPost['email'] == email:
+    if findPost:
         userData.update_many({'_id': sessionID}, update)
 
 
