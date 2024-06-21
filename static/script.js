@@ -1,3 +1,63 @@
+//addPassword drop down menu
+document.addEventListener('DOMContentLoaded', function() {
+    const fieldMapping = {
+        'account_number': 'Account Number',
+        'username' : 'Username',
+        'pin': 'Pin',
+        'date': 'Date',
+        'other': 'Other'
+    };
+
+    const dropdownMenu = document.getElementById('dropdown-menu');
+
+    // Remove field and add it back to dropdown menu
+    window.removeField = function(field) {
+        const fieldContainer = document.getElementById(`field-${field}`);
+        fieldContainer.remove();
+
+        const dropdownItem = document.createElement('li');
+        dropdownItem.innerHTML = `<a class="dropdown-item" href="javascript:void(0);" onclick="addField('${field}')">${capitalizeFirstLetter(field.replace('_', ' '))}</a>`;
+        dropdownMenu.appendChild(dropdownItem);
+    };
+
+    // Add field and remove it from dropdown menu
+    window.addField = function(field) {
+        const fieldHtml = `
+            <div class="field-container" id="field-${field}">
+                <h4 class="mt-3">${capitalizeFirstLetter(field.replace('_', ' '))}</h4>
+                <div class="row mb-4">
+                    <div class="col-8">
+                        <input type="text" name="${field}" class="form-control">
+                    </div>
+                    <div class="col-1">
+                        <button type="button" class="btn btn-danger btn-sm" onclick="removeField('${field}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const fieldsContainer = document.getElementById('fields-container');
+        const confirmButton = document.querySelector('.addPasswordButton').parentElement.parentElement;
+        fieldsContainer.insertAdjacentHTML('beforeend', fieldHtml);
+
+        const dropdownItems = dropdownMenu.querySelectorAll('a');
+        dropdownItems.forEach(item => {
+            if (item.textContent.toLowerCase().replace(' ', '_') === field) {
+                item.parentElement.remove();
+            }
+        });
+    };
+
+    // Capitalize first letter of field names
+    function capitalizeFirstLetter(string) {
+        return string.charAt(0).toUpperCase() + string.slice(1);
+    }
+});
+
+
+
 // Define global interval variable for the countdown
 let timerInterval = null;
 
@@ -322,6 +382,62 @@ function update2FAToggle() {
     .catch(error => console.error('Error fetching 2FA status:', error));
 }
 
+function deleteAccount() {
+    if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+        fetch('/delete_account', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                window.location.href = '/';
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+}
+
+// Show the family account input field
+function showFamilyAccountInput() {
+    var familyAccountInput = document.getElementById('familyAccountInput');
+    if (familyAccountInput.style.display === 'none' || familyAccountInput.style.display === '') {
+        familyAccountInput.style.display = 'block';
+    } else {
+        familyAccountInput.style.display = 'none';
+    }
+}
+
+// Add family account function
+function addFamilyAccount() {
+    var familyEmail = document.getElementById('familyEmail').value;
+
+    fetch('/add_family_account', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email: familyEmail })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert("Request sent successfully!");
+            document.getElementById('familyAccountInput').style.display = 'none';
+        } else {
+            alert("Error: " + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+}
 
 
 
@@ -635,6 +751,7 @@ function deleteEntry(website, email, password) {
         });
     }
 }
+
 
 //animal ID
 function toggleSubmitButton() {

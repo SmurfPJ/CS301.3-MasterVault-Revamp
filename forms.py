@@ -12,6 +12,13 @@ class RegistrationForm(FlaskForm):
                               validators=[DataRequired()])
     submit_bn = SubmitField('Register')
 
+class FamilyRegistrationForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired(), Length(min=3, max=50)])
+    dob = DateField('Date of Birth', validators=[DataRequired()])
+    password = PasswordField('Password', validators=[DataRequired()])
+    confirm_password = PasswordField('Confirm password', validators=[DataRequired(), EqualTo('password')])
+    submit_bn = SubmitField('Add Family Member')
+
 class AnimalSelectionForm(FlaskForm):
     animal = RadioField('Choose Animal ID', choices=[
         ('giraffe', 'Giraffe'),
