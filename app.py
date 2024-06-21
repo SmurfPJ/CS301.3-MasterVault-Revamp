@@ -210,21 +210,30 @@ def login():
     if request.method == 'POST':
         email = cform.email.data
 
-        if email:
+        # Ensure that email and password are not None
+        if email is not None:
+
             findPost = userData.find_one({"email": email})
 
+            print(findPost)
+
             if findPost:
+                
                 postEmail = findPost["email"]
 
                 if email == postEmail:
+
+                    # setSessionID(findPost["_id"])
+                    setSessionID(findPost['_id']) 
+                    # print(session['id'])
+                                    
                     session['username'] = findPost["username"]
                     session['email'] = email
-                    session['_id'] = str(findPost['_id'])  # Ensure ID is a string
-
-                    return redirect(url_for('settings'))
+                    # session['_id'] = findPost['_id']
+                    return redirect(url_for('animalIDVerification'))
 
             flash("Invalid email")
-        return render_template("login.html", form=cform)
+            return render_template("login.html", form=cform)
 
     return render_template("login.html", form=LoginForm())
 
