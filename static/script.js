@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const fieldMapping = {
         'account_number': 'Account Number',
         'username' : 'Username',
+        'email' : 'Email',
         'pin': 'Pin',
         'date': 'Date',
         'other': 'Other'
@@ -62,7 +63,6 @@ document.addEventListener('DOMContentLoaded', function() {
 let timerInterval = null;
 
 document.addEventListener('DOMContentLoaded', function() {
-  // Define all the UI elements
   const lockSwitch = document.getElementById('lockSwitch');
   const lockRange = document.getElementById('lockRange');
   const lockRangeLabel = document.getElementById('lockRangeLabel');
@@ -71,32 +71,27 @@ document.addEventListener('DOMContentLoaded', function() {
   const masterPasswordInput = document.getElementById('masterPasswordInput');
   const toggleLockVisibilityBtn = document.getElementById('toggleLockVisibilityBtn');
   const toggleLockVisibilityIcon = document.getElementById('toggleLockVisibilityIcon');
+  let timerInterval = null;
 
   // Initialize the lock range label and button disabled state
   updateRangeLabel();
   lockRange.addEventListener('input', updateRangeLabel);
 
-  // Check lock state from the server when the page loads
-  fetch('/check_lock')
-    .then(response => response.json())
-    .then(data => {
-      if (data.locked) {
-        const unlockTime = new Date(data.unlock_time);
-        const remainingTime = unlockTime - new Date();
-        if (remainingTime > 0) {
-          startCountdown(remainingTime);
-          lockSwitch.checked = true;
-          lockRange.disabled = true;
-          toggleLockBtn.disabled = false;
-          toggleLockBtn.textContent = 'UNLOCK ACCOUNT';
-        } else {
-          resetLockUI();
-        }
-      } else {
-        resetLockUI();
-      }
-    })
-    .catch(error => console.error('Error:', error));
+  // Retrieve lock state from local storage
+  const savedLockState = localStorage.getItem('lockState');
+  const savedUnlockTime = localStorage.getItem('unlockTime');
+
+  // Check if we have a saved lock state and unlock time
+  if (savedLockState === 'locked' && savedUnlockTime && new Date(savedUnlockTime) > new Date()) {
+    lockSwitch.checked = true;
+    lockRange.disabled = true;
+    toggleLockBtn.disabled = false;
+    toggleLockBtn.textContent = 'UNLOCK ACCOUNT';
+    unlockForm.style.display = 'none';
+    startCountdown(new Date(savedUnlockTime) - new Date());
+  } else {
+    resetLockUI();
+  }
 
   // Event listener for the lock switch
   lockSwitch.addEventListener('change', function() {
@@ -105,6 +100,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!this.checked) {
       toggleLockBtn.textContent = 'LOCK ACCOUNT';
       unlockForm.style.display = 'none';
+      localStorage.removeItem('lockState');
+      localStorage.removeItem('unlockTime');
       if (timerInterval) {
         clearInterval(timerInterval);
         timerInterval = null;
@@ -138,104 +135,106 @@ document.addEventListener('DOMContentLoaded', function() {
     toggleLockVisibilityIcon.classList.toggle('bi-eye-slash');
     toggleLockVisibilityIcon.classList.toggle('bi-eye');
   });
-});
 
-function updateRangeLabel() {
-  const rangeValue = lockRange.value;
-  lockRangeLabel.innerText = rangeValue * 10 + ' minutes'; // Assuming each step of the slider is 10 minutes
-}
-
-function lockAccount(duration) {
-  fetch('/lock_account', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ lockDuration: duration })
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.status === 'success') {
-      alert('Account Locked Successfully');
-
-      const unlockTime = new Date(data.unlock_time);
-      const remainingTime = unlockTime - new Date();
-      
-      // Start the countdown
-      startCountdown(remainingTime);
-      toggleLockBtn.textContent = 'UNLOCK ACCOUNT';
-      lockSwitch.disabled = true;
-      lockRange.disabled = true;
-    } else {
-      alert(data.message);
-    }
-  })
-  .catch(error => console.error('Error:', error));
-}
-
-function unlockAccount() {
-  const masterPassword = masterPasswordInput.value;
-  fetch('/unlock_account', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ master_password: masterPassword })
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.status === 'success') {
-      alert('Account Unlocked Successfully');
-
-      // Stop the countdown timer
-      stopCountdown();
-
-      // Reset the UI
-      resetLockUI();
-    } else {
-      alert('Failed to unlock account: ' + data.message);
-    }
-  })
-  .catch(error => console.error('Error:', error));
-}
-
-function stopCountdown() {
-  clearInterval(timerInterval);
-  timerInterval = null;
-  lockRangeLabel.innerText = '0 minutes';
-}
-
-function startCountdown(durationInMilliseconds) {
-  const endTime = Date.now() + durationInMilliseconds;
-  timerInterval = setInterval(() => {
-    const remainingTime = endTime - Date.now();
-    if (remainingTime <= 0) {
-      clearInterval(timerInterval);
-      resetLockUI();
-    } else {
-      const minutes = Math.floor(remainingTime / 60000);
-      const seconds = Math.floor((remainingTime % 60000) / 1000);
-      lockRangeLabel.innerText = `${minutes}:${seconds.toString().padStart(2, '0')} minutes left`;
-    }
-  }, 1000);
-}
-
-function resetLockUI() {
-  const lockSwitch = document.getElementById('lockSwitch');
-  const lockRange = document.getElementById('lockRange');
-  const lockRangeLabel = document.getElementById('lockRangeLabel');
-  const toggleLockBtn = document.getElementById('toggleLockBtn');
-  const unlockForm = document.getElementById('unlockForm');
-
-  lockSwitch.checked = false;
-  lockSwitch.disabled = false;
-  lockRange.value = 0;
-  lockRange.disabled = true;
-  updateRangeLabel();
-  toggleLockBtn.textContent = 'LOCK ACCOUNT';
-  toggleLockBtn.disabled = true;
-  unlockForm.style.display = 'none';
-  if (timerInterval) {
-    clearInterval(timerInterval);
-    timerInterval = null;
+  function updateRangeLabel() {
+    const rangeValue = lockRange.value;
+    lockRangeLabel.innerText = rangeValue * 10 + ' minutes'; // Assuming each step of the slider is 10 minutes
   }
-}
+
+  function lockAccount(duration) {
+    const lockTime = new Date();
+    const unlockTime = new Date(lockTime.getTime() + duration * 60000);
+
+    fetch('/lock_account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lockDuration: duration }) // Ensure duration is in minutes
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.status === 'success') {
+        alert('Account Locked Successfully');
+
+        // Save the lock state and unlock time in local storage
+        localStorage.setItem('lockState', 'locked');
+        localStorage.setItem('unlockTime', unlockTime.toISOString());
+
+        // Start the countdown
+        startCountdown(duration * 60000); // Pass milliseconds to startCountdown
+        toggleLockBtn.textContent = 'UNLOCK ACCOUNT';
+        lockSwitch.disabled = true;
+        lockRange.disabled = true;
+      } else {
+        alert(data.message);
+      }
+    })
+    .catch(error => console.error('Error:', error));
+  }
+
+  function unlockAccount() {
+    const masterPassword = masterPasswordInput.value;
+    fetch('/unlock_account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ master_password: masterPassword })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.status === 'success') {
+        alert('Account Unlocked Successfully');
+
+        // Stop the countdown timer
+        stopCountdown();
+
+        // Reset lock state in local storage
+        localStorage.removeItem('lockState');
+        localStorage.removeItem('unlockTime');
+
+        // Reset the UI
+        resetLockUI();
+      } else {
+        alert('Failed to unlock account: ' + data.message);
+      }
+    })
+    .catch(error => console.error('Error:', error));
+  }
+
+  function stopCountdown() {
+    clearInterval(timerInterval);
+    timerInterval = null; // Reset the timerInterval variable
+    lockRangeLabel.innerText = '0 minutes';
+  }
+
+  function startCountdown(durationInMilliseconds) {
+    const endTime = Date.now() + durationInMilliseconds;
+    timerInterval = setInterval(() => {
+      const remainingTime = endTime - Date.now();
+      if (remainingTime <= 0) {
+        clearInterval(timerInterval);
+        resetLockUI();
+      } else {
+        const minutes = Math.floor(remainingTime / 60000);
+        const seconds = Math.floor((remainingTime % 60000) / 1000);
+        lockRangeLabel.innerText = `${minutes}:${seconds.toString().padStart(2, '0')} minutes left`;
+      }
+    }, 1000);
+  }
+
+  function resetLockUI() {
+    lockSwitch.checked = false;
+    lockSwitch.disabled = false;
+    lockRange.value = 0;
+    lockRange.disabled = true;
+    updateRangeLabel();
+    toggleLockBtn.textContent = 'LOCK ACCOUNT';
+    toggleLockBtn.disabled = true;
+    unlockForm.style.display = 'none';
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+  }
+});
 
 
 

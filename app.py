@@ -567,10 +567,10 @@ def updatePassword(oldWebsite, oldEmail, oldPassword, newWebsite, newEmail, newP
         if websiteKey not in searchPasswords:
             break  # Exit the loop if the website key does not exist
 
-        if (searchPasswords[websiteKey] == oldWebsite and 
-            searchPasswords[emailKey] == oldEmail and 
+        if (searchPasswords[websiteKey] == oldWebsite and
+            searchPasswords[emailKey] == oldEmail and
             searchPasswords[passwordKey] == oldPassword):
-            
+
             # Update the values
             userPasswords.update_one(
                 {"_id": sessionID},
@@ -713,7 +713,7 @@ def add_family_account():
 
 @app.route('/enable_2fa', methods=['POST'])
 def enable_2fa():
-    sessionID = session.get('_id')
+    # sessionID = session.get('_id')
     if not sessionID:
         return jsonify({'message': 'User not logged in'}), 401
 
@@ -724,7 +724,7 @@ def enable_2fa():
 
 @app.route('/disable_2fa', methods=['POST'])
 def disable_2fa():
-    sessionID = session.get('_id')
+    # sessionID = session.get('_id')
     if not sessionID:
         return jsonify({'message': 'User not logged in'}), 401
 
@@ -741,7 +741,7 @@ def update_2fa_status(sessionID, status):
 
 @app.route('/get_2fa_status')
 def get_2fa_status():
-    sessionID = session.get('_id')
+    # sessionID = session.get('_id')
     if not sessionID:
         return jsonify({'error': 'User not logged in'}), 401
 
@@ -759,7 +759,7 @@ def get_2fa_status():
 
 @app.route('/setup_2fa', methods=['POST'])
 def setup_2fa():
-    sessionID = session.get('_id')
+    # sessionID = session.get('_id')
     if not sessionID:
         return jsonify({'message': 'User not logged in'}), 401
 
@@ -773,9 +773,9 @@ def setup_2fa():
 
 @app.route('/verify_2fa', methods=['POST'])
 def verify_2fa():
-    sessionID = session.get('_id')
-    if not sessionID:
-        return jsonify({'message': 'User not logged in'}), 401
+    # sessionID = session.get('_id')
+    # if not sessionID:
+    #     return jsonify({'message': 'User not logged in'}), 401
 
     data = request.get_json()
     print("Received data:", data)
@@ -800,7 +800,7 @@ def verify_2fa():
 def lock_account():
     data = request.get_json()
     lock_duration = data.get('lockDuration')
-    sessionID = session.get('_id')
+    findPost = userData.find_one({'_id': sessionID})
 
     if not sessionID:
         return jsonify({'status': 'error', 'message': 'User not logged in'}), 401
@@ -818,7 +818,7 @@ def lock_account():
 
 @app.route('/check_lock', methods=['GET'])
 def check_lock():
-    findPost = userData.find_one({'_id': sessionID})
+    findPost = userData.find_one({'email': sessionID})
     lock_state = findPost['accountLocked']
     unlock_timestamp = findPost['lockTimestamp']
     current_time = datetime.now()
@@ -831,7 +831,7 @@ def check_lock():
 
 
 
-def update_lock_state_in_db(lock_state):
+def update_lock_state_in_db(sessionID,lock_state):
     findPost = userData.find_one({'_id': sessionID})
     update = {
         "$set": {
@@ -848,7 +848,7 @@ def update_lock_state_in_db(lock_state):
 @app.route('/unlock_account', methods=['POST'])
 def unlock_account():
     data = request.get_json()
-    sessionID = session.get('_id')
+    findPost = userData.find_one({'_id': sessionID})
     master_password = data.get('master_password')
 
     if not sessionID:
@@ -876,7 +876,7 @@ def verify_and_unlock_account(sessionID, master_password):
 
 
 
-def lock_account_in_db(lock_duration):
+def lock_account_in_db(sessionID,lock_duration):
     locked = True
     lock_duration_in_minutes = int(lock_duration)  # Convert lock duration to minutes
 
