@@ -338,6 +338,7 @@ def register():
                     "masterPassword": None,
                     "2FA": False,
                     "accountLocked": "Unlocked",
+                    "lockDuration": "empty",
                     "lockTimestamp": timeNow
                 }
         
@@ -804,6 +805,13 @@ def verify_2fa():
 def lock_account():
     data = request.get_json()
     lock_duration = data.get('lockDuration')
+
+    update = {
+        "$set": {
+            'lockDuration': data.get('lockDuration')
+        }
+    }
+    userData.update_one({'_id': sessionID}, update)
 
     if not sessionID:
         return jsonify({'status': 'error', 'message': 'User not logged in'}), 401
