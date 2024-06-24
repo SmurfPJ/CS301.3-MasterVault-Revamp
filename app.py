@@ -33,7 +33,7 @@ app.config['MAIL_USE_SSL'] = True
 app.config['MAIL_USE_TLS'] = False
 mail = Mail(app)
 
-
+sessionID = None
 
 def setSessionID(userID):
     global sessionID
@@ -268,6 +268,8 @@ def animalIDVerification():
         flash('Incorrect password or security check not confirmed', 'danger')
 
     return render_template('animal_IDLogin.html', selected_animal=selected_animal)
+
+
 
 
 
@@ -608,10 +610,8 @@ def resetPassword():
     return render_template('resetPassword.html')
 
 
-
 @app.route('/passwordList', methods=['GET'])
 def passwordList():
-
     findPost = userData.find_one({'_id': sessionID})
 
     if 'username' in session:
@@ -624,12 +624,11 @@ def passwordList():
 
             if not userPasswordList:
                 return render_template('passwordList.html', passwords=[])
-            
+
             return render_template('passwordList.html', passwords=userPasswordList)
     else:
         flash('Please log in to access your passwords.', 'warning')
         return redirect(url_for('login'))
-
 
 
 @app.route('/lockedPasswordList', methods=['GET'])
@@ -722,8 +721,8 @@ def add_family_account():
 
 @app.route('/enable_2fa', methods=['POST'])
 def enable_2fa():
-    if not sessionID:
-        return jsonify({'message': 'User not logged in'}), 401
+    # if not sessionID:
+    #     return jsonify({'message': 'User not logged in'}), 401
 
     update_2fa_status(sessionID, True)
     return jsonify({'message': '2FA has been enabled'}), 200
@@ -732,8 +731,8 @@ def enable_2fa():
 
 @app.route('/disable_2fa', methods=['POST'])
 def disable_2fa():
-    if not sessionID:
-        return jsonify({'message': 'User not logged in'}), 401
+    # if not sessionID:
+    #     return jsonify({'message': 'User not logged in'}), 401
 
     update_2fa_status(sessionID, False)
     return jsonify({'message': '2FA has been disabled'}), 200
@@ -748,7 +747,7 @@ def update_2fa_status(sessionID, status):
 
 @app.route('/get_2fa_status')
 def get_2fa_status():
-    sessionID = session.get('_id')
+    # sessionID = session.get('_id')
     if not sessionID:
         return jsonify({'error': 'User not logged in'}), 401
 
@@ -803,32 +802,37 @@ def verify_2fa():
 
 @app.route('/lock_account', methods=['POST'])
 def lock_account():
+    global sessionID
     data = request.get_json()
     lock_duration = data.get('lockDuration')
-
-    update = {
-        "$set": {
-            'lockDuration': data.get('lockDuration')
-        }
-    }
-    userData.update_one({'_id': sessionID}, update)
 
     if not sessionID:
         return jsonify({'status': 'error', 'message': 'User not logged in'}), 401
 
-    success = lock_account_in_db(sessionID, lock_duration)
+    lock_timestamp = datetime.now() + timedelta(minutes=int(lock_duration))
 
-    if success:
+    update = {
+        "$set": {
+            'lockDuration': lock_duration,
+            'accountLocked': 'Locked',
+            'lockTimestamp': lock_timestamp
+        }
+    }
+    userData.update_one({'_id': sessionID}, update)
+
+    if lock_account_in_db(lock_duration):
         session['lock_state'] = 'locked'
-        session['unlock_time'] = datetime.now() + timedelta(minutes=int(lock_duration))
+        session['unlock_time'] = lock_timestamp
         return jsonify({'status': 'success', 'message': 'Account locked'})
     else:
         return jsonify({'status': 'error', 'message': 'Failed to lock account'})
+
     
 
 
 @app.route('/check_lock', methods=['GET'])
 def check_lock():
+    global sessionID
     findPost = userData.find_one({'_id': sessionID})
     lock_state = findPost['accountLocked']
     unlock_timestamp = findPost['lockTimestamp']
@@ -843,40 +847,44 @@ def check_lock():
 
 
 def update_lock_state_in_db(lock_state):
-    findPost = userData.find_one({'_id': sessionID})
+    global sessionID
     update = {
         "$set": {
             "accountLocked": lock_state,
-            "lockTimestamp": datetime.now()
+            "lockTimestamp": datetime.now() if lock_state == 'Unlocked' else None
         }
     }
     userData.update_one({'_id': sessionID}, update)
 
-    if findPost:
-        userData.update_many({'_id': sessionID}, update)
-
 
 @app.route('/unlock_account', methods=['POST'])
 def unlock_account():
+    global sessionID
     data = request.get_json()
     master_password = data.get('master_password')
+
+    # Debugging information
+    print("Master password received:", master_password)
+    findPost = userData.find_one({'_id': sessionID})
+    print("Stored master password:", findPost['masterPassword'])
+    print("Session ID:", sessionID)
 
     if not sessionID:
         return jsonify({'status': 'error', 'message': 'User not logged in'}), 401
 
-    success = verify_and_unlock_account(sessionID, master_password)
-
-    if success:
+    if verify_and_unlock_account(sessionID, master_password):
         session.pop('lock_state', None)
         session.pop('unlock_time', None)
+        print("Account successfully unlocked.")
         return jsonify({'status': 'success', 'message': 'Account unlocked'})
     else:
+        print("Incorrect master password.")
         return jsonify({'status': 'error', 'message': 'Incorrect master password'}), 401
-
 
 
 def verify_and_unlock_account(sessionID, master_password):
     findPost = userData.find_one({'_id': sessionID})
+    print("Verifying account:", findPost)
     if findPost and findPost['masterPassword'] == master_password:
         userData.update_one({'_id': sessionID}, {"$set": {"accountLocked": "Unlocked"}})
         return True
@@ -884,13 +892,9 @@ def verify_and_unlock_account(sessionID, master_password):
 
 
 
-
-
 def lock_account_in_db(lock_duration):
-    locked = True
-    lock_duration_in_minutes = int(lock_duration)  # Convert lock duration to minutes
-
-    print(lock_duration)
+    global sessionID
+    lock_duration_in_minutes = int(lock_duration)
 
     update = {
         "$set": {
@@ -898,10 +902,19 @@ def lock_account_in_db(lock_duration):
             "lockTimestamp": datetime.now() + timedelta(minutes=lock_duration_in_minutes)
         }
     }
+    result = userData.update_one({'_id': sessionID}, update)
+    return result.modified_count > 0
 
-    print(update)
+@app.route('/auto_unlock_account', methods=['POST'])
+def auto_unlock_account():
+    global sessionID
+    # if not sessionID:
+    #     return jsonify({'status': 'error', 'message': 'User not logged in'}), 401
 
-    userData.update_many({'_id': sessionID}, update)
+    userData.update_one({'_id': sessionID}, {"$set": {"accountLocked": "Unlocked"}})
+
+    return jsonify({'status': 'success', 'message': 'Account automatically unlocked'})
+
 
 
 

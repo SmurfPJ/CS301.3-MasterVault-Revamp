@@ -1,3 +1,7 @@
+// Define global interval variable for the countdown
+let timerInterval;
+timerInterval = null;
+
 //addPassword drop down menu
 document.addEventListener('DOMContentLoaded', function() {
     const fieldMapping = {
@@ -40,7 +44,8 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
 
         const fieldsContainer = document.getElementById('fields-container');
-        const confirmButton = document.querySelector('.addPasswordButton').parentElement.parentElement;
+        let confirmButton;
+        confirmButton = document.querySelector('.addPasswordButton').parentElement.parentElement;
         fieldsContainer.insertAdjacentHTML('beforeend', fieldHtml);
 
         const dropdownItems = dropdownMenu.querySelectorAll('a');
@@ -59,8 +64,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
-// Define global interval variable for the countdown
-let timerInterval = null;
+
 
 document.addEventListener('DOMContentLoaded', function() {
   const lockSwitch = document.getElementById('lockSwitch');
@@ -71,17 +75,15 @@ document.addEventListener('DOMContentLoaded', function() {
   const masterPasswordInput = document.getElementById('masterPasswordInput');
   const toggleLockVisibilityBtn = document.getElementById('toggleLockVisibilityBtn');
   const toggleLockVisibilityIcon = document.getElementById('toggleLockVisibilityIcon');
+   unlockAccountBtn.addEventListener('click', unlockAccount);
   let timerInterval = null;
 
-  // Initialize the lock range label and button disabled state
   updateRangeLabel();
   lockRange.addEventListener('input', updateRangeLabel);
 
-  // Retrieve lock state from local storage
   const savedLockState = localStorage.getItem('lockState');
   const savedUnlockTime = localStorage.getItem('unlockTime');
 
-  // Check if we have a saved lock state and unlock time
   if (savedLockState === 'locked' && savedUnlockTime && new Date(savedUnlockTime) > new Date()) {
     lockSwitch.checked = true;
     lockRange.disabled = true;
@@ -93,7 +95,6 @@ document.addEventListener('DOMContentLoaded', function() {
     resetLockUI();
   }
 
-  // Event listener for the lock switch
   lockSwitch.addEventListener('change', function() {
     lockRange.disabled = !this.checked;
     toggleLockBtn.disabled = !this.checked;
@@ -109,26 +110,22 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // Event listener for the lock/unlock button
   toggleLockBtn.addEventListener('click', function() {
     if (this.textContent.trim() === 'LOCK ACCOUNT') {
-      const lockDuration = lockRange.value * 10; // Convert to minutes
+      const lockDuration = lockRange.value * 10;
       lockAccount(lockDuration);
     } else {
-      // Attempt to unlock the account
       unlockForm.style.display = unlockForm.style.display === 'none' ? 'block' : 'none';
       this.textContent = unlockForm.style.display === 'block' ? 'CANCEL UNLOCK' : 'LOCK ACCOUNT';
     }
   });
 
-  // Event listener for unlocking the account
   masterPasswordInput.addEventListener('keydown', function(event) {
     if (event.key === 'Enter') {
       unlockAccount();
     }
   });
 
-  // Event listener for the toggle visibility button
   toggleLockVisibilityBtn.addEventListener('click', function() {
     const type = masterPasswordInput.getAttribute('type') === 'password' ? 'text' : 'password';
     masterPasswordInput.setAttribute('type', type);
@@ -138,7 +135,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function updateRangeLabel() {
     const rangeValue = lockRange.value;
-    lockRangeLabel.innerText = rangeValue * 10 + ' minutes'; // Assuming each step of the slider is 10 minutes
+    lockRangeLabel.innerText = rangeValue * 10 + ' minutes';
   }
 
   function lockAccount(duration) {
@@ -148,19 +145,17 @@ document.addEventListener('DOMContentLoaded', function() {
     fetch('/lock_account', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lockDuration: duration }) // Ensure duration is in minutes
+      body: JSON.stringify({ lockDuration: duration })
     })
     .then(response => response.json())
     .then(data => {
       if (data.status === 'success') {
         alert('Account Locked Successfully');
 
-        // Save the lock state and unlock time in local storage
         localStorage.setItem('lockState', 'locked');
         localStorage.setItem('unlockTime', unlockTime.toISOString());
 
-        // Start the countdown
-        startCountdown(duration * 60000); // Pass milliseconds to startCountdown
+        startCountdown(duration * 60000);
         toggleLockBtn.textContent = 'UNLOCK ACCOUNT';
         lockSwitch.disabled = true;
         lockRange.disabled = true;
@@ -171,37 +166,40 @@ document.addEventListener('DOMContentLoaded', function() {
     .catch(error => console.error('Error:', error));
   }
 
-  function unlockAccount() {
-    const masterPassword = masterPasswordInput.value;
-    fetch('/unlock_account', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ master_password: masterPassword })
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.status === 'success') {
-        alert('Account Unlocked Successfully');
+ function unlockAccount() {
+  const masterPassword = masterPasswordInput.value;
+  console.log("Attempting to unlock with master password:", masterPassword);
+  fetch('/unlock_account', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ master_password: masterPassword })
+  })
+  .then(response => response.json())
+  .then(data => {
+    console.log("Response from server:", data);
+    if (data.status === 'success') {
+      alert('Account Unlocked Successfully');
 
-        // Stop the countdown timer
-        stopCountdown();
+      // Stop the countdown timer
+      stopCountdown();
 
-        // Reset lock state in local storage
-        localStorage.removeItem('lockState');
-        localStorage.removeItem('unlockTime');
+      // Reset lock state in local storage
+      localStorage.removeItem('lockState');
+      localStorage.removeItem('unlockTime');
 
-        // Reset the UI
-        resetLockUI();
-      } else {
-        alert('Failed to unlock account: ' + data.message);
-      }
-    })
-    .catch(error => console.error('Error:', error));
-  }
+      // Reset the UI
+      resetLockUI();
+    } else {
+      alert('Failed to unlock account: ' + data.message);
+    }
+  })
+  .catch(error => console.error('Error:', error));
+}
+
 
   function stopCountdown() {
     clearInterval(timerInterval);
-    timerInterval = null; // Reset the timerInterval variable
+    timerInterval = null;
     lockRangeLabel.innerText = '0 minutes';
   }
 
@@ -212,6 +210,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (remainingTime <= 0) {
         clearInterval(timerInterval);
         resetLockUI();
+        autoUnlock();
       } else {
         const minutes = Math.floor(remainingTime / 60000);
         const seconds = Math.floor((remainingTime % 60000) / 1000);
@@ -234,7 +233,30 @@ document.addEventListener('DOMContentLoaded', function() {
       timerInterval = null;
     }
   }
+
+  function autoUnlock() {
+    fetch('/auto_unlock_account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.status === 'success') {
+        alert('Account Automatically Unlocked');
+
+        localStorage.removeItem('lockState');
+        localStorage.removeItem('unlockTime');
+
+        resetLockUI();
+      } else {
+        console.error('Failed to auto unlock account: ' + data.message);
+      }
+    })
+    .catch(error => console.error('Error:', error));
+  }
 });
+
+
 
 
 
