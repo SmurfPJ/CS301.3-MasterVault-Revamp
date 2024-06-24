@@ -1,7 +1,16 @@
+import certifi
+import pymongo
 from pymongo import MongoClient
 import csv
 
-client = MongoClient('mongodb+srv://Conor:M0ng0DB1@mastervaultdb1.g1a7o98.mongodb.net/?retryWrites=true&w=majority&appName=MasterVaultDB1')
+connection = MongoClient('mongodb+srv://Conor:M0ng0DB1@mastervaultdb1.g1a7o98.mongodb.net/?retryWrites=true&w=majority&appName=MasterVaultDB1')
+
+client = pymongo.MongoClient(connection, tlsCAFile=certifi.where())
+
+
+
+
+
 
 db = client.Test
 collection1 = db["userData"]
@@ -25,11 +34,11 @@ def copy_id_test():
             print("Inserted new post.")
         else:
             print("Post already exists.")
-    
+
     else:
         print("No dice")
 
-# copy_id_test()
+copy_id_test()
 
 
 
@@ -51,7 +60,7 @@ def password_test():
 
 #    for result in results:
 #       print(result["_id"])
-   
+
 #    results = collection.find({"email":"stuwart@email"})
 
 #    for x in results:
@@ -71,7 +80,7 @@ def get_passwords(user_id):
 
     for i in userData:
         print(i)
-    
+
     if not userData:
         print("Not userData")
         return []
@@ -83,16 +92,16 @@ def get_passwords(user_id):
     for key, value in userData.items():
         if key == '_id':
             continue  # Skip the '_id' field
-        
+
         print(f"Processing field: {key} with value: {value}")
-        
+
         currentList.append(value)  # Store only the value
-        
+
         # If the current list reaches the specified length, add it to userAccounts and start a new list
         if len(currentList) == ACCOUNT_METADATA_LENGTH:
             userAccounts.append(currentList)
             currentList = []
-    
+
     # Add the remaining items if the last list is not empty
     if currentList:
         userAccounts.append(currentList)
@@ -102,7 +111,7 @@ def get_passwords(user_id):
     #     sublist.sort()
 
     print("User Accounts: ", userAccounts)
-    
+
     # Print the first list, if it exists
     if userAccounts:
         print("First list:", userAccounts[0])

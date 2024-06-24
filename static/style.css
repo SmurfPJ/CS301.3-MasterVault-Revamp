@@ -45,7 +45,7 @@ body {
 
 .main-container {
     display: flex;
-    height: 88.4vh;
+    height: 100vh;
 }
 
 
@@ -559,3 +559,23 @@ width: 300px;
     height: auto;
 }
 
+.addPasswordButton {
+ background-color: #173356;
+    border-color: #173356;
+}
+
+.addPasswordButton:hover {
+    background-color: #4c8cdb;
+    border-color: #4c8cdb;
+}
+
+.short-input {
+    width: 75%;
+}
+
+
+
+.password-container .password-generator {
+    margin-top: 20px;
+    margin-left: 50px;
+}
