@@ -8,11 +8,12 @@ from pymongo import MongoClient
 import random, string, csv, os
 
 # Constants
-ACCOUNT_METADATA_LENGTH = 11
+ACCOUNT_METADATA_LENGTH = 10
 client = MongoClient('mongodb+srv://Conor:M0ng0DB1@mastervaultdb1.g1a7o98.mongodb.net/')
 db = client.MasterVault
 userData = db["userData"]
 userPasswords = db["userPasswords"]
+familyData = db["familyData"]
 temporary_2fa_storage = {} # Temporary storage for 2FA codes
 
 
@@ -32,7 +33,7 @@ app.config['MAIL_USE_SSL'] = True
 app.config['MAIL_USE_TLS'] = False
 mail = Mail(app)
 
-
+sessionID = None
 
 def setSessionID(userID):
     global sessionID
@@ -270,6 +271,8 @@ def animalIDVerification():
 
 
 
+
+
 @app.route('/choose_animal', methods=['GET', 'POST'])
 def animal_id():
     form = AnimalSelectionForm()
@@ -325,16 +328,7 @@ def register():
         dob = cform.dob.data
         timeNow = datetime.now()
         dobTime = datetime(year=dob.year, month=dob.month, day=dob.day, hour=0, minute=0, second=0)
-        idCounter = 1
-
-        if cform.account_type.data == "family":
-            for i in userData.find():
-                if 'familyID' in i and isinstance(i['familyID'], int):
-                    idCounter += 1
-                    print(idCounter)
-        else:
-            idCounter = 0
-        
+        idCounter = 1        
 
         post = {
                     "username": cform.username.data,
@@ -343,11 +337,10 @@ def register():
                     "loginPassword": cform.password.data,
                     "animalID": None,
                     "accountType": cform.account_type.data,
-                    "familyID": idCounter,
                     "masterPassword": None,
                     "2FA": False,
                     "accountLocked": "Unlocked",
-                    "lockDuration": 'empty',
+                    "lockDuration": "empty",
                     "lockTimestamp": timeNow
                 }
         
@@ -357,6 +350,21 @@ def register():
 
         findPost = userData.find_one(post)
         setSessionID(findPost['_id'])
+
+        userPasswords.insert_one({"_id": sessionID})
+
+        if cform.account_type.data == "family":
+            for i in userData.find():
+                if 'familyID' in i and isinstance(i['familyID'], int):
+                    idCounter += 1
+                    print(idCounter)
+
+            familyPost = {
+                "_id": sessionID,
+                "familyID": idCounter
+            }
+            
+            familyData.insert_one(familyPost)
 
         # Send verification email after successfully saving account details
         send_verification_email(cform.email.data)
@@ -535,58 +543,76 @@ def saveNewPassword(website, username, password, additional_fields):
 
 
 
-@app.route('/passwordView/<website>/<email>/<password>', methods=['GET', 'POST'])
-def passwordView(website, email, password):
-    if request.method == 'POST':
-        newWebsite = request.form['website']
-        newEmail = request.form['email']
-        newPassword = request.form['password']
-        updatePassword(website, email, password, newEmail, newPassword, newWebsite)
+@app.route('/passwordView/<name>', methods=['GET', 'POST'])
+def passwordView(name):
+    searchPasswords = userPasswords.find_one({"_id": sessionID})
+
+    if not searchPasswords:
+        print("No passwords found for the user.")
         return redirect(url_for('passwordList'))
-    return render_template('passwordView.html', website=website, email=email, password=password)
+
+    password_data = {}
+    for i in range(1, len(searchPasswords)):
+        if searchPasswords.get(f"name{i}") == name:
+            password_data = {
+                "name": searchPasswords.get(f"name{i}"),
+                "createdDate": searchPasswords.get(f"createdDate{i}"),
+                "website": searchPasswords.get(f"website{i}"),
+                "username": searchPasswords.get(f"username{i}"),
+                "accountNumber": searchPasswords.get(f"accountNumber{i}"),
+                "pin": searchPasswords.get(f"pin{i}"),
+                "date": searchPasswords.get(f"date{i}"),
+                "password": searchPasswords.get(f"password{i}"),
+                "other": searchPasswords.get(f"other{i}")
+            }
+            break
+
+    if request.method == 'POST':
+        new_data = {
+            "website": request.form.get('website'),
+            "username": request.form.get('username'),
+            "accountNumber": request.form.get('accountNumber'),
+            "pin": request.form.get('pin'),
+            "date": request.form.get('date'),
+            "password": request.form.get('password'),
+            "other": request.form.get('other')
+        }
+
+        updatePassword(name, new_data)
+        return redirect(url_for('passwordList'))
+
+    return render_template('passwordView.html', password_data=password_data)
 
 
 
-def updatePassword(oldWebsite, oldEmail, oldPassword, newWebsite, newEmail, newPassword):
-
+def updatePassword(name, new_data):
     searchPasswords = userPasswords.find_one({'_id': sessionID})
 
-    # Find the document with the specified sessionID and the old password details
     if not searchPasswords:
         print("No passwords found for the user.")
         return
 
-    # Iterate through the user's passwords to find the one that matches the old values
-    i = 1
-    updated = False
-    while True:
-        websiteKey = f"Website{i}"
-        emailKey = f"Email{i}"
-        passwordKey = f"Password{i}"
-
-        if websiteKey not in searchPasswords:
-            break  # Exit the loop if the website key does not exist
-
-        if (searchPasswords[websiteKey] == oldWebsite and 
-            searchPasswords[emailKey] == oldEmail and 
-            searchPasswords[passwordKey] == oldPassword):
+    for i in range(1, len(searchPasswords)):
+        if searchPasswords.get(f"name{i}") == name:
+            update_fields = {}
+            if new_data['website']:
+                update_fields[f"website{i}"] = new_data['website']
+            if new_data['username']:
+                update_fields[f"username{i}"] = new_data['username']
+            if new_data['accountNumber']:
+                update_fields[f"accountNumber{i}"] = new_data['accountNumber']
+            if new_data['pin']:
+                update_fields[f"pin{i}"] = new_data['pin']
+            if new_data['date']:
+                update_fields[f"date{i}"] = new_data['date']
+            if new_data['password']:
+                update_fields[f"password{i}"] = new_data['password']
+            if new_data['other']:
+                update_fields[f"other{i}"] = new_data['other']
             
-            # Update the values
-            userPasswords.update_one(
-                {"_id": sessionID},
-                {"$set": {
-                    websiteKey: newWebsite,
-                    emailKey: newEmail,
-                    passwordKey: newPassword
-                }}
-            )
-            updated = True
+            if update_fields:
+                userPasswords.update_one({"_id": sessionID}, {"$set": update_fields})
             break
-
-        i += 1
-
-    if not updated:
-        print("The specified password was not found and could not be updated.")
 
 
 
@@ -602,10 +628,8 @@ def resetPassword():
     return render_template('resetPassword.html')
 
 
-
 @app.route('/passwordList', methods=['GET'])
 def passwordList():
-
     findPost = userData.find_one({'_id': sessionID})
 
     if 'username' in session:
@@ -618,12 +642,11 @@ def passwordList():
 
             if not userPasswordList:
                 return render_template('passwordList.html', passwords=[])
-            
+
             return render_template('passwordList.html', passwords=userPasswordList)
     else:
         flash('Please log in to access your passwords.', 'warning')
         return redirect(url_for('login'))
-
 
 
 @app.route('/lockedPasswordList', methods=['GET'])
@@ -685,6 +708,9 @@ def settings():
 def settings_family():
     return render_template('settingsFamily.html')
 
+@app.route('/familyRegister', methods=['GET', 'POST'])
+def familyRegister():
+    return render_template('registrationAddFamily.html')
 
 @app.route('/add_family_account', methods=['POST'])
 def add_family_account():
@@ -713,9 +739,8 @@ def add_family_account():
 
 @app.route('/enable_2fa', methods=['POST'])
 def enable_2fa():
-    sessionID = session.get('_id')
-    if not sessionID:
-        return jsonify({'message': 'User not logged in'}), 401
+    # if not sessionID:
+    #     return jsonify({'message': 'User not logged in'}), 401
 
     update_2fa_status(sessionID, True)
     return jsonify({'message': '2FA has been enabled'}), 200
@@ -724,9 +749,8 @@ def enable_2fa():
 
 @app.route('/disable_2fa', methods=['POST'])
 def disable_2fa():
-    sessionID = session.get('_id')
-    if not sessionID:
-        return jsonify({'message': 'User not logged in'}), 401
+    # if not sessionID:
+    #     return jsonify({'message': 'User not logged in'}), 401
 
     update_2fa_status(sessionID, False)
     return jsonify({'message': '2FA has been disabled'}), 200
@@ -741,7 +765,7 @@ def update_2fa_status(sessionID, status):
 
 @app.route('/get_2fa_status')
 def get_2fa_status():
-    sessionID = session.get('_id')
+    # sessionID = session.get('_id')
     if not sessionID:
         return jsonify({'error': 'User not logged in'}), 401
 
@@ -759,7 +783,6 @@ def get_2fa_status():
 
 @app.route('/setup_2fa', methods=['POST'])
 def setup_2fa():
-    sessionID = session.get('_id')
     if not sessionID:
         return jsonify({'message': 'User not logged in'}), 401
 
@@ -773,7 +796,6 @@ def setup_2fa():
 
 @app.route('/verify_2fa', methods=['POST'])
 def verify_2fa():
-    sessionID = session.get('_id')
     if not sessionID:
         return jsonify({'message': 'User not logged in'}), 401
 
@@ -798,26 +820,37 @@ def verify_2fa():
 
 @app.route('/lock_account', methods=['POST'])
 def lock_account():
+    global sessionID
     data = request.get_json()
     lock_duration = data.get('lockDuration')
-    sessionID = session.get('_id')
 
     if not sessionID:
         return jsonify({'status': 'error', 'message': 'User not logged in'}), 401
 
-    success = lock_account_in_db(sessionID, lock_duration)
+    lock_timestamp = datetime.now() + timedelta(minutes=int(lock_duration))
 
-    if success:
+    update = {
+        "$set": {
+            'lockDuration': lock_duration,
+            'accountLocked': 'Locked',
+            'lockTimestamp': lock_timestamp
+        }
+    }
+    userData.update_one({'_id': sessionID}, update)
+
+    if lock_account_in_db(lock_duration):
         session['lock_state'] = 'locked'
-        session['unlock_time'] = datetime.now() + timedelta(minutes=int(lock_duration))
+        session['unlock_time'] = lock_timestamp
         return jsonify({'status': 'success', 'message': 'Account locked'})
     else:
         return jsonify({'status': 'error', 'message': 'Failed to lock account'})
+
     
 
 
 @app.route('/check_lock', methods=['GET'])
 def check_lock():
+    global sessionID
     findPost = userData.find_one({'_id': sessionID})
     lock_state = findPost['accountLocked']
     unlock_timestamp = findPost['lockTimestamp']
@@ -832,41 +865,44 @@ def check_lock():
 
 
 def update_lock_state_in_db(lock_state):
-    findPost = userData.find_one({'_id': sessionID})
+    global sessionID
     update = {
         "$set": {
             "accountLocked": lock_state,
-            "lockTimestamp": datetime.now()
+            "lockTimestamp": datetime.now() if lock_state == 'Unlocked' else None
         }
     }
     userData.update_one({'_id': sessionID}, update)
 
-    if findPost:
-        userData.update_many({'_id': sessionID}, update)
-
 
 @app.route('/unlock_account', methods=['POST'])
 def unlock_account():
+    global sessionID
     data = request.get_json()
-    sessionID = session.get('_id')
     master_password = data.get('master_password')
+
+    # Debugging information
+    print("Master password received:", master_password)
+    findPost = userData.find_one({'_id': sessionID})
+    print("Stored master password:", findPost['masterPassword'])
+    print("Session ID:", sessionID)
 
     if not sessionID:
         return jsonify({'status': 'error', 'message': 'User not logged in'}), 401
 
-    success = verify_and_unlock_account(sessionID, master_password)
-
-    if success:
+    if verify_and_unlock_account(sessionID, master_password):
         session.pop('lock_state', None)
         session.pop('unlock_time', None)
+        print("Account successfully unlocked.")
         return jsonify({'status': 'success', 'message': 'Account unlocked'})
     else:
+        print("Incorrect master password.")
         return jsonify({'status': 'error', 'message': 'Incorrect master password'}), 401
-
 
 
 def verify_and_unlock_account(sessionID, master_password):
     findPost = userData.find_one({'_id': sessionID})
+    print("Verifying account:", findPost)
     if findPost and findPost['masterPassword'] == master_password:
         userData.update_one({'_id': sessionID}, {"$set": {"accountLocked": "Unlocked"}})
         return True
@@ -874,13 +910,9 @@ def verify_and_unlock_account(sessionID, master_password):
 
 
 
-
-
 def lock_account_in_db(lock_duration):
-    locked = True
-    lock_duration_in_minutes = int(lock_duration)  # Convert lock duration to minutes
-
-    print(lock_duration)
+    global sessionID
+    lock_duration_in_minutes = int(lock_duration)
 
     update = {
         "$set": {
@@ -888,10 +920,19 @@ def lock_account_in_db(lock_duration):
             "lockTimestamp": datetime.now() + timedelta(minutes=lock_duration_in_minutes)
         }
     }
+    result = userData.update_one({'_id': sessionID}, update)
+    return result.modified_count > 0
 
-    print(update)
+@app.route('/auto_unlock_account', methods=['POST'])
+def auto_unlock_account():
+    global sessionID
+    # if not sessionID:
+    #     return jsonify({'status': 'error', 'message': 'User not logged in'}), 401
 
-    userData.update_many({'_id': sessionID}, update)
+    userData.update_one({'_id': sessionID}, {"$set": {"accountLocked": "Unlocked"}})
+
+    return jsonify({'status': 'success', 'message': 'Account automatically unlocked'})
+
 
 
 
@@ -920,16 +961,20 @@ def delete_account():
         return jsonify({"success": False, "message": "User not logged in."}), 401
 
     # Retrieve the session email
-    session_email = session['email']
+    # session_email = session['email']
 
     # Find the user in the database
-    findPost = userData.find_one({'email': session_email})
+    findData = userData.find_one({'_id': sessionID})
+    findPassword = userPasswords.find_one({'_id': sessionID})
 
 
-    if findPost:
-        if session_email == findPost['email']:
+    if findData and findPassword:
+        if sessionID == findData['_id'] and sessionID == findPassword['_id']:
             # Delete the user from the database
-            userData.delete_one({'email': session_email})
+            if findData['accountType'] == 'family':
+                familyData.delete_one({'_id': sessionID})
+            userData.delete_one({'_id': sessionID})
+            userPasswords.delete_one({'_id': sessionID})
 
             # Clear the user's session and log them out
             session.clear()
