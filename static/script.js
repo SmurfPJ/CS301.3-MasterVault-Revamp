@@ -665,6 +665,9 @@ function copyToClipboard() {
     }, 2000); //2 seconds
 }
 
+
+
+
 function copyWebsite() {
     var field = document.getElementById('website-input');
     field.select();
@@ -783,5 +786,4 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
-
 
