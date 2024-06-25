@@ -469,7 +469,7 @@ def master_password():
 @app.route('/addPassword', methods=['GET', 'POST'])
 def addPassword():
     if request.method == 'POST':
-        if request.form.get('action') == 'generate_password':
+        if 'keyword' in request.form:
             # Password generator form was submitted
             keyword = request.form.get('keyword')
             length = int(request.form.get('length', 8))  # Provide a default value in case it's not set
@@ -488,11 +488,11 @@ def addPassword():
                 strength = check_password_strength(password)
                 if not password:
                     error = "Failed to generate password. Ensure the keyword is shorter than the desired password length."
+                else:
+                    return jsonify({'password': password, 'strength': strength})
 
-            # Render the same template with new data
-            return render_template('addPassword.html', password=password, strength=strength, error=error, keyword=keyword,
-                                   length=length, use_numbers=use_numbers, use_symbols=use_symbols, replace_vowels=replace_vowels,
-                                   replace_most_frequent_vowel=replace_most_frequent_vowel, remove_vowels=remove_vowels, randomize=randomize)
+            return jsonify({'error': 'Failed to generate password.'})
+
         else:
             # Add password form was submitted
             website = request.form.get('website')
