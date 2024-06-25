@@ -210,40 +210,22 @@ def login():
     if request.method == 'POST':
         email = cform.email.data
 
-        # Ensure that email and password are not None
-        if email is not None:
-
-            # print(encrypt(email))
-
+        if email:
             findPost = userData.find_one({"email": email})
-
-            # print("Decrypt Username: ", decrypt(findPost['username']))
-            # print("Decrypt Password: ", decrypt(findPost['loginPassword']))
-
-            # print(findPost)
-
             if findPost:
-                
                 postEmail = findPost["email"]
-
-                print("Email: ", email)
-                print("Decrypted Email: ", postEmail)
-
                 if email == postEmail:
-
-                    # setSessionID(findPost["_id"])
-                    setSessionID(findPost['_id']) 
-                    # print(session['id'])
-                                    
-                    session['username'] = decrypt(findPost["username"])
+                    setSessionID(findPost['_id'])
+                    session['username'] = findPost["username"]
                     session['email'] = email
-                    # session['_id'] = findPost['_id']
+                    session['account_type'] = findPost.get('accountType', 'personal')  # 'personal' or 'family'
                     return redirect(url_for('animalIDVerification'))
 
-            flash("Invalid email")
+            flash("Email not registered")
             return render_template("login.html", form=cform)
 
-    return render_template("login.html", form=LoginForm())
+    return render_template("login.html", form=cform)
+
 
 
 
@@ -338,28 +320,27 @@ def register():
     cform = RegistrationForm()
     print("Starting")
     if cform.validate_on_submit():
-
         print("Started")
-            
+
         dob = cform.dob.data
         timeNow = datetime.now()
         dobTime = datetime(year=dob.year, month=dob.month, day=dob.day, hour=0, minute=0, second=0)
-        idCounter = 1        
+        idCounter = 1
 
         post = {
-                    "username": encrypt(cform.username.data),
-                    "email": encrypt(cform.email.data),
-                    "DOB": dobTime,
-                    "loginPassword": encrypt(cform.password.data),
-                    "animalID": None,
-                    "accountType": cform.account_type.data,
-                    "masterPassword": None,
-                    "2FA": False,
-                    "accountLocked": "Unlocked",
-                    "lockDuration": "empty",
-                    "lockTimestamp": timeNow
-                }
-        
+            "username": encrypt(cform.username.data),
+            "email": cform.email.data,
+            "DOB": dobTime,
+            "loginPassword": encrypt(cform.password.data),
+            "animalID": None,
+            "accountType": cform.account_type.data,  # 'personal' or 'family'
+            "masterPassword": None,
+            "2FA": False,
+            "accountLocked": "Unlocked",
+            "lockDuration": "empty",
+            "lockTimestamp": timeNow
+        }
+
         print(post)
 
         userData.insert_one(post)
@@ -379,7 +360,7 @@ def register():
                 "_id": sessionID,
                 "familyID": idCounter
             }
-            
+
             familyData.insert_one(familyPost)
 
         # Send verification email after successfully saving account details
@@ -391,24 +372,23 @@ def register():
     return render_template("register.html", form=cform)
 
 
-
 @app.route('/register_family', methods=['GET', 'POST'])
 def register_family():
     form = FamilyRegistrationForm()
     if form.validate_on_submit():
         username = form.username.data
+        email = form.email.data
         dob = form.dob.data
         password = form.password.data
 
         timeNow = datetime.now()
         dobTime = datetime(year=dob.year, month=dob.month, day=dob.day, hour=0, minute=0, second=0)
 
-
         familyID = session.get('familyID', 0)
 
         post = {
             "username": username,
-            "email": None,  # No email for family members in this form
+            "email": email,
             "DOB": dobTime,
             "loginPassword": password,
             "animalID": None,
@@ -431,6 +411,8 @@ def register_family():
         return redirect(url_for('animal_id'))
 
     return render_template('registrationAddFamily.html', form=form)
+
+
 
 
 
