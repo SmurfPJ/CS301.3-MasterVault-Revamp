@@ -543,58 +543,76 @@ def saveNewPassword(website, username, password, additional_fields):
 
 
 
-@app.route('/passwordView/<name>/<password>', methods=['GET', 'POST'])
-def passwordView(website, email, password):
-    if request.method == 'POST':
-        newWebsite = request.form['website']
-        newEmail = request.form['email']
-        newPassword = request.form['password']
-        updatePassword(website, email, password, newEmail, newPassword, newWebsite)
+@app.route('/passwordView/<name>', methods=['GET', 'POST'])
+def passwordView(name):
+    searchPasswords = userPasswords.find_one({"_id": sessionID})
+
+    if not searchPasswords:
+        print("No passwords found for the user.")
         return redirect(url_for('passwordList'))
-    return render_template('passwordView.html', website=website, email=email, password=password)
+
+    password_data = {}
+    for i in range(1, len(searchPasswords)):
+        if searchPasswords.get(f"name{i}") == name:
+            password_data = {
+                "name": searchPasswords.get(f"name{i}"),
+                "createdDate": searchPasswords.get(f"createdDate{i}"),
+                "website": searchPasswords.get(f"website{i}"),
+                "username": searchPasswords.get(f"username{i}"),
+                "accountNumber": searchPasswords.get(f"accountNumber{i}"),
+                "pin": searchPasswords.get(f"pin{i}"),
+                "date": searchPasswords.get(f"date{i}"),
+                "password": searchPasswords.get(f"password{i}"),
+                "other": searchPasswords.get(f"other{i}")
+            }
+            break
+
+    if request.method == 'POST':
+        new_data = {
+            "website": request.form.get('website'),
+            "username": request.form.get('username'),
+            "accountNumber": request.form.get('accountNumber'),
+            "pin": request.form.get('pin'),
+            "date": request.form.get('date'),
+            "password": request.form.get('password'),
+            "other": request.form.get('other')
+        }
+
+        updatePassword(name, new_data)
+        return redirect(url_for('passwordList'))
+
+    return render_template('passwordView.html', password_data=password_data)
 
 
 
-def updatePassword(oldWebsite, oldEmail, oldPassword, newWebsite, newEmail, newPassword):
-
+def updatePassword(name, new_data):
     searchPasswords = userPasswords.find_one({'_id': sessionID})
 
-    # Find the document with the specified sessionID and the old password details
     if not searchPasswords:
         print("No passwords found for the user.")
         return
 
-    # Iterate through the user's passwords to find the one that matches the old values
-    i = 1
-    updated = False
-    while True:
-        websiteKey = f"Website{i}"
-        emailKey = f"Email{i}"
-        passwordKey = f"Password{i}"
-
-        if websiteKey not in searchPasswords:
-            break  # Exit the loop if the website key does not exist
-
-        if (searchPasswords[websiteKey] == oldWebsite and 
-            searchPasswords[emailKey] == oldEmail and 
-            searchPasswords[passwordKey] == oldPassword):
+    for i in range(1, len(searchPasswords)):
+        if searchPasswords.get(f"name{i}") == name:
+            update_fields = {}
+            if new_data['website']:
+                update_fields[f"website{i}"] = new_data['website']
+            if new_data['username']:
+                update_fields[f"username{i}"] = new_data['username']
+            if new_data['accountNumber']:
+                update_fields[f"accountNumber{i}"] = new_data['accountNumber']
+            if new_data['pin']:
+                update_fields[f"pin{i}"] = new_data['pin']
+            if new_data['date']:
+                update_fields[f"date{i}"] = new_data['date']
+            if new_data['password']:
+                update_fields[f"password{i}"] = new_data['password']
+            if new_data['other']:
+                update_fields[f"other{i}"] = new_data['other']
             
-            # Update the values
-            userPasswords.update_one(
-                {"_id": sessionID},
-                {"$set": {
-                    websiteKey: newWebsite,
-                    emailKey: newEmail,
-                    passwordKey: newPassword
-                }}
-            )
-            updated = True
+            if update_fields:
+                userPasswords.update_one({"_id": sessionID}, {"$set": update_fields})
             break
-
-        i += 1
-
-    if not updated:
-        print("The specified password was not found and could not be updated.")
 
 
 
