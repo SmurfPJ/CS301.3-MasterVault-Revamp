@@ -109,7 +109,7 @@ def getPasswords():
         #     print(f"Processing field: {key} with value: {value}")
         
         if "createdDate" not in key and "passwordLocked" not in key and value != None:
-            value = decrypt(value)
+            value = value
 
         currentList.append(value)  # Store the (possibly decrypted) value to the list
 
@@ -257,7 +257,7 @@ def animalIDVerification():
         password = request.form.get('password')
         security_check = request.form.get('securityCheck')
 
-        if security_check and password == decrypt(findPost['loginPassword']):
+        if security_check and password == findPost['loginPassword']:
             if findPost['masterPassword'] == None:
                 return redirect(url_for('master_password'))
             else:
@@ -279,7 +279,7 @@ def animal_id():
         selected_animal = form.animal.data
         # user_email = findPost['email']  # Assuming you have the user's email stored in session
 
-        userData.update_one({"_id": sessionID}, {"$set": {"animalID": encrypt(selected_animal)}})
+        userData.update_one({"_id": sessionID}, {"$set": {"animalID": selected_animal}})
 
         return redirect(url_for('login'))
 
@@ -328,10 +328,10 @@ def register():
         idCounter = 1
 
         post = {
-            "username": encrypt(cform.username.data),
+            "username": cform.username.data,
             "email": cform.email.data,
             "DOB": dobTime,
-            "loginPassword": encrypt(cform.password.data),
+            "loginPassword": cform.password.data,
             "animalID": None,
             "accountType": cform.account_type.data,  # 'personal' or 'family'
             "masterPassword": None,
@@ -438,7 +438,7 @@ def master_password():
     if request.method == 'POST':
         master_password = request.form['master_password']
 
-        userData.update_one({"_id": sessionID}, {"$set": {"masterPassword": encrypt(master_password)}})
+        userData.update_one({"_id": sessionID}, {"$set": {"masterPassword": master_password}})
 
         # Flash a success message
         flash('Master password set up successfully!', 'success')
@@ -534,7 +534,7 @@ def saveNewPassword(website, username, password, additional_fields):
     encryptableFields = [newName, newWebsite, newUsername, newAccountNumber, newPin, newDate, newPassword, newOther]
     for item in post.keys():
         if item in encryptableFields and post[item] is not None:
-            post[item] = encrypt(post[item])
+            post[item] = post[item]
 
     print(post)
 
@@ -904,7 +904,7 @@ def unlock_account():
 def verify_and_unlock_account(sessionID, master_password):
     findPost = userData.find_one({'_id': sessionID})
     print("Verifying account:", findPost)
-    if findPost and decrypt(findPost['masterPassword']) == master_password:
+    if findPost and findPost['masterPassword'] == master_password:
         userData.update_one({'_id': sessionID}, {"$set": {"accountLocked": "Unlocked"}})
         return True
     return False
