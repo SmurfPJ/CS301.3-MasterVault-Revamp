@@ -104,13 +104,9 @@ def getPasswords():
         # print(f"Processing field: {key} with value: {value}")
         
         # Decrypt the value if it is not None
-        if value is not None:
-            value = decrypt(value)
-            print(f"Processing field: {key} with value: {value}")
-        
-        if "createdDate" not in key and "passwordLocked" not in key and value != None:
-            value = decrypt(value)
-            print(f"Processing field: {key} with decrypted value: {value}")
+        # if "createdDate" not in key and "passwordLocked" not in key and value != None:
+        #     value = decrypt(value)
+        #     print(f"Processing field: {key} with decrypted value: {value}")
 
         currentList.append(value)  # Store the (possibly decrypted) value to the list
 
@@ -560,9 +556,9 @@ def saveNewPassword(website, username, password, additional_fields):
         i += 1
 
     encryptableFields = [newName, newWebsite, newUsername, newAccountNumber, newPin, newDate, newPassword, newOther]
-    for item in post.keys():
-        if item in encryptableFields and post[item] is not None:
-            post[item] = encrypt(post[item])
+    # for item in post.keys():
+    #     if item in encryptableFields and post[item] is not None:
+    #         post[item] = encrypt(post[item])
 
     print(post)
 
@@ -582,7 +578,8 @@ def passwordView(name):
 
     password_data = {}
     for i in range(1, len(searchPasswords)):
-        if decrypt(searchPasswords.get(f"name{i}")) == name:
+        if searchPasswords.get(f"name{i}") == name:
+        # if decrypt(searchPasswords.get(f"name{i}")) == name:
             password_data = {
                 "name": searchPasswords.get(f"name{i}"),
                 "createdDate": searchPasswords.get(f"createdDate{i}"),
