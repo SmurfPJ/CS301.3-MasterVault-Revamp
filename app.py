@@ -104,13 +104,9 @@ def getPasswords():
         # print(f"Processing field: {key} with value: {value}")
         
         # Decrypt the value if it is not None
-        if value is not None:
-            value = decrypt(value)
-            print(f"Processing field: {key} with value: {value}")
-        
-        if "createdDate" not in key and "passwordLocked" not in key and value != None:
-            # value = decrypt(value)
-            print(f"Processing field: {key} with decrypted value: {value}")
+        # if "createdDate" not in key and "passwordLocked" not in key and value != None:
+        #     value = decrypt(value)
+        #     print(f"Processing field: {key} with decrypted value: {value}")
 
         currentList.append(value)  # Store the (possibly decrypted) value to the list
 
@@ -582,7 +578,8 @@ def passwordView(name):
 
     password_data = {}
     for i in range(1, len(searchPasswords)):
-        if decrypt(searchPasswords.get(f"name{i}")) == name:
+        if searchPasswords.get(f"name{i}") == name:
+        # if decrypt(searchPasswords.get(f"name{i}")) == name:
             password_data = {
                 "name": searchPasswords.get(f"name{i}"),
                 "createdDate": searchPasswords.get(f"createdDate{i}"),
@@ -601,7 +598,6 @@ def passwordView(name):
 
     if request.method == 'POST':
         new_data = {
-            "name" : request.form.get('name'),
             "website": request.form.get('website'),
             "username": request.form.get('username'),
             "email": request.form.get('email'),
@@ -645,7 +641,7 @@ def updatePassword(name, new_data):
                 update_fields[f"password{i}"] = new_data['password']
             if new_data['other']:
                 update_fields[f"other{i}"] = new_data['other']
-
+            
             if update_fields:
                 userPasswords.update_one({"_id": sessionID}, {"$set": update_fields})
             break
