@@ -101,7 +101,7 @@ def getPasswords():
         if key == '_id':
             continue  # Skip the '_id' key
 
-        print(f"Processing field: {key} with value: {value}")
+        # print(f"Processing field: {key} with value: {value}")
         
         # Decrypt the value if it is not None
         # if value is not None:
@@ -109,7 +109,8 @@ def getPasswords():
         #     print(f"Processing field: {key} with value: {value}")
         
         if "createdDate" not in key and "passwordLocked" not in key and value != None:
-            value = value
+            value = decrypt(value)
+            print(f"Processing field: {key} with decrypted value: {value}")
 
         currentList.append(value)  # Store the (possibly decrypted) value to the list
 
@@ -210,22 +211,41 @@ def login():
     if request.method == 'POST':
         email = cform.email.data
 
-        if email:
+        # Ensure that email and password are not None
+        if email is not None:
+
+            # print(encrypt(email))
+
             findPost = userData.find_one({"email": email})
+
+            # print("Decrypt Username: ", decrypt(findPost['username']))
+            # print("Decrypt Password: ", decrypt(findPost['loginPassword']))
+
+            # print(findPost)
+
             if findPost:
+                
                 postEmail = findPost["email"]
+
+                # print("Email: ", email)
+                # print("Decrypted Email: ", postEmail)
+
                 if email == postEmail:
-                    setSessionID(findPost['_id'])
-                    session['username'] = findPost["username"]
+
+                    # setSessionID(findPost["_id"])
+                    setSessionID(findPost['_id']) 
+                    # print(session['id'])
+                                    
+                    session['username'] = decrypt(findPost["username"])
+                    print("Decrypted session username: ", session.get('username'))
                     session['email'] = email
-                    session['account_type'] = findPost.get('accountType', 'personal')  # 'personal' or 'family'
+                    # session['_id'] = findPost['_id']
                     return redirect(url_for('animalIDVerification'))
 
-            flash("Email not registered")
+            flash("Invalid email")
             return render_template("login.html", form=cform)
 
-    return render_template("login.html", form=cform)
-
+    return render_template("login.html", form=LoginForm())
 
 
 
@@ -236,6 +256,8 @@ def logout():
     setSessionID(None)
 
     return redirect(url_for('login'))
+
+
 
 @app.route('/about', methods=['GET'])
 def aboutUs():
@@ -249,7 +271,8 @@ def animalIDVerification():
     findPost = userData.find_one({"_id": sessionID})
     available_animals = ['giraffe', 'dog', 'chicken', 'monkey', 'peacock', 'tiger']
 
-    selected_animal = findPost['animalID']
+    selected_animal = decrypt(findPost['animalID'])
+    print("Decrypted animal ID: ", selected_animal)
     if selected_animal not in available_animals:
         selected_animal = random.choice(available_animals)
 
@@ -257,7 +280,9 @@ def animalIDVerification():
         password = request.form.get('password')
         security_check = request.form.get('securityCheck')
 
-        if security_check and password == findPost['loginPassword']:
+        print("Decrypted password: ", decrypt(findPost['loginPassword']))
+
+        if security_check and password == decrypt(findPost['loginPassword']):
             if findPost['masterPassword'] == None:
                 return redirect(url_for('master_password'))
             else:
@@ -279,7 +304,7 @@ def animal_id():
         selected_animal = form.animal.data
         # user_email = findPost['email']  # Assuming you have the user's email stored in session
 
-        userData.update_one({"_id": sessionID}, {"$set": {"animalID": selected_animal}})
+        userData.update_one({"_id": sessionID}, {"$set": {"animalID": encrypt(selected_animal)}})
 
         return redirect(url_for('login'))
 
@@ -320,27 +345,28 @@ def register():
     cform = RegistrationForm()
     print("Starting")
     if cform.validate_on_submit():
-        print("Started")
 
+        print("Started")
+            
         dob = cform.dob.data
         timeNow = datetime.now()
         dobTime = datetime(year=dob.year, month=dob.month, day=dob.day, hour=0, minute=0, second=0)
-        idCounter = 1
+        idCounter = 1        
 
         post = {
-            "username": cform.username.data,
-            "email": cform.email.data,
-            "DOB": dobTime,
-            "loginPassword": cform.password.data,
-            "animalID": None,
-            "accountType": cform.account_type.data,  # 'personal' or 'family'
-            "masterPassword": None,
-            "2FA": False,
-            "accountLocked": "Unlocked",
-            "lockDuration": "empty",
-            "lockTimestamp": timeNow
-        }
-
+                    "username": encrypt(cform.username.data),
+                    "email": cform.email.data,
+                    "DOB": dobTime,
+                    "loginPassword": encrypt(cform.password.data),
+                    "animalID": None,
+                    "accountType": cform.account_type.data,
+                    "masterPassword": None,
+                    "2FA": False,
+                    "accountLocked": "Unlocked",
+                    "lockDuration": "empty",
+                    "lockTimestamp": timeNow
+                }
+        
         print(post)
 
         userData.insert_one(post)
@@ -360,7 +386,7 @@ def register():
                 "_id": sessionID,
                 "familyID": idCounter
             }
-
+            
             familyData.insert_one(familyPost)
 
         # Send verification email after successfully saving account details
@@ -372,23 +398,24 @@ def register():
     return render_template("register.html", form=cform)
 
 
+
 @app.route('/register_family', methods=['GET', 'POST'])
 def register_family():
     form = FamilyRegistrationForm()
     if form.validate_on_submit():
         username = form.username.data
-        email = form.email.data
         dob = form.dob.data
         password = form.password.data
 
         timeNow = datetime.now()
         dobTime = datetime(year=dob.year, month=dob.month, day=dob.day, hour=0, minute=0, second=0)
 
+
         familyID = session.get('familyID', 0)
 
         post = {
             "username": username,
-            "email": email,
+            "email": None,  # No email for family members in this form
             "DOB": dobTime,
             "loginPassword": password,
             "animalID": None,
@@ -416,8 +443,6 @@ def register_family():
 
 
 
-
-
 @app.route('/master_password', methods=['GET', 'POST'])
 def master_password():
 
@@ -438,7 +463,7 @@ def master_password():
     if request.method == 'POST':
         master_password = request.form['master_password']
 
-        userData.update_one({"_id": sessionID}, {"$set": {"masterPassword": master_password}})
+        userData.update_one({"_id": sessionID}, {"$set": {"masterPassword": encrypt(master_password)}})
 
         # Flash a success message
         flash('Master password set up successfully!', 'success')
@@ -508,6 +533,7 @@ def saveNewPassword(website, username, password, additional_fields):
         newCreatedDate = f"createdDate{i}"
         newWebsite = f"website{i}"
         newUsername = f"username{i}"
+        newEmail = f"email{i}"
         newAccountNumber = f"accountNumber{i}"
         newPin = f"pin{i}"
         newDate = f"date{i}"
@@ -521,6 +547,7 @@ def saveNewPassword(website, username, password, additional_fields):
                 newCreatedDate: datetime.now(),
                 newWebsite: website,
                 newUsername: username,
+                newEmail: additional_fields.get('email'),
                 newAccountNumber: additional_fields.get('account_number'),
                 newPin: additional_fields.get('pin'),
                 newDate: additional_fields.get('date'),
@@ -534,7 +561,7 @@ def saveNewPassword(website, username, password, additional_fields):
     encryptableFields = [newName, newWebsite, newUsername, newAccountNumber, newPin, newDate, newPassword, newOther]
     for item in post.keys():
         if item in encryptableFields and post[item] is not None:
-            post[item] = post[item]
+            post[item] = encrypt(post[item])
 
     print(post)
 
@@ -560,6 +587,7 @@ def passwordView(name):
                 "createdDate": searchPasswords.get(f"createdDate{i}"),
                 "website": searchPasswords.get(f"website{i}"),
                 "username": searchPasswords.get(f"username{i}"),
+                "email": searchPasswords.get(f"email{i}"),
                 "accountNumber": searchPasswords.get(f"accountNumber{i}"),
                 "pin": searchPasswords.get(f"pin{i}"),
                 "date": searchPasswords.get(f"date{i}"),
@@ -572,6 +600,7 @@ def passwordView(name):
         new_data = {
             "website": request.form.get('website'),
             "username": request.form.get('username'),
+            "email": request.form.get('email'),
             "accountNumber": request.form.get('accountNumber'),
             "pin": request.form.get('pin'),
             "date": request.form.get('date'),
@@ -600,6 +629,8 @@ def updatePassword(name, new_data):
                 update_fields[f"website{i}"] = new_data['website']
             if new_data['username']:
                 update_fields[f"username{i}"] = new_data['username']
+            if new_data['email']:
+                update_fields[f"email{i}"] = new_data['email']
             if new_data['accountNumber']:
                 update_fields[f"accountNumber{i}"] = new_data['accountNumber']
             if new_data['pin']:
@@ -903,8 +934,8 @@ def unlock_account():
 
 def verify_and_unlock_account(sessionID, master_password):
     findPost = userData.find_one({'_id': sessionID})
-    print("Verifying account:", findPost)
-    if findPost and findPost['masterPassword'] == master_password:
+    print("Decrypted master password:", decrypt(findPost['masterPassword']))
+    if findPost and decrypt(findPost['masterPassword']) == master_password:
         userData.update_one({'_id': sessionID}, {"$set": {"accountLocked": "Unlocked"}})
         return True
     return False
