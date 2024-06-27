@@ -109,7 +109,7 @@ def getPasswords():
         #     print(f"Processing field: {key} with value: {value}")
         
         if "createdDate" not in key and "passwordLocked" not in key and value != None:
-            value = decrypt(value)
+            # value = decrypt(value)
             print(f"Processing field: {key} with decrypted value: {value}")
 
         currentList.append(value)  # Store the (possibly decrypted) value to the list
@@ -560,9 +560,9 @@ def saveNewPassword(website, username, password, additional_fields):
         i += 1
 
     encryptableFields = [newName, newWebsite, newUsername, newAccountNumber, newPin, newDate, newPassword, newOther]
-    for item in post.keys():
-        if item in encryptableFields and post[item] is not None:
-            post[item] = encrypt(post[item])
+    # for item in post.keys():
+    #     if item in encryptableFields and post[item] is not None:
+    #         post[item] = encrypt(post[item])
 
     print(post)
 
