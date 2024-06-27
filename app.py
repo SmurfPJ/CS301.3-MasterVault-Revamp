@@ -507,6 +507,7 @@ def addPassword():
             password = request.form.get('password')
 
             additional_fields = {
+                'name': request.form.get('name'),
                 'account_number': request.form.get('account_number'),
                 'pin': request.form.get('pin'),
                 'date': request.form.get('date'),
@@ -543,7 +544,7 @@ def saveNewPassword(website, username, password, additional_fields):
         
         if newWebsite not in searchPasswords:
             post = {
-                newName: newName,
+                newName: additional_fields.get('name'),
                 newCreatedDate: datetime.now(),
                 newWebsite: website,
                 newUsername: username,
