@@ -8,7 +8,7 @@ from pymongo import MongoClient
 import random, string, csv, os
 
 # Constants
-ACCOUNT_METADATA_LENGTH = 10
+ACCOUNT_METADATA_LENGTH = 11
 client = MongoClient('mongodb+srv://Conor:M0ng0DB1@mastervaultdb1.g1a7o98.mongodb.net/')
 db = client.MasterVault
 userData = db["userData"]
@@ -599,6 +599,7 @@ def passwordView(name):
 
     if request.method == 'POST':
         new_data = {
+            "name" : request.form.get('name'),
             "website": request.form.get('website'),
             "username": request.form.get('username'),
             "email": request.form.get('email'),
@@ -642,7 +643,7 @@ def updatePassword(name, new_data):
                 update_fields[f"password{i}"] = new_data['password']
             if new_data['other']:
                 update_fields[f"other{i}"] = new_data['other']
-            
+
             if update_fields:
                 userPasswords.update_one({"_id": sessionID}, {"$set": update_fields})
             break

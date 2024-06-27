@@ -65,7 +65,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
-
 document.addEventListener('DOMContentLoaded', function() {
   const lockSwitch = document.getElementById('lockSwitch');
   const lockRange = document.getElementById('lockRange');
