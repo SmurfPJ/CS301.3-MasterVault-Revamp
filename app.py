@@ -8,7 +8,7 @@ from pymongo import MongoClient
 import random, string, csv, os
 
 # Constants
-ACCOUNT_METADATA_LENGTH = 10
+ACCOUNT_METADATA_LENGTH = 11
 client = MongoClient('mongodb+srv://Conor:M0ng0DB1@mastervaultdb1.g1a7o98.mongodb.net/')
 db = client.MasterVault
 userData = db["userData"]
@@ -104,9 +104,9 @@ def getPasswords():
         # print(f"Processing field: {key} with value: {value}")
         
         # Decrypt the value if it is not None
-        # if value is not None:
-        #     value = decrypt(value)
-        #     print(f"Processing field: {key} with value: {value}")
+        if value is not None:
+            value = decrypt(value)
+            print(f"Processing field: {key} with value: {value}")
         
         if "createdDate" not in key and "passwordLocked" not in key and value != None:
             value = decrypt(value)
@@ -582,7 +582,7 @@ def passwordView(name):
 
     password_data = {}
     for i in range(1, len(searchPasswords)):
-        if searchPasswords.get(f"name{i}") == name:
+        if decrypt(searchPasswords.get(f"name{i}")) == name:
             password_data = {
                 "name": searchPasswords.get(f"name{i}"),
                 "createdDate": searchPasswords.get(f"createdDate{i}"),
@@ -596,6 +596,8 @@ def passwordView(name):
                 "other": searchPasswords.get(f"other{i}")
             }
             break
+
+        
 
     if request.method == 'POST':
         new_data = {
