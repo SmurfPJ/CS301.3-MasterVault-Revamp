@@ -2,12 +2,11 @@
 let timerInterval;
 timerInterval = null;
 
-//addPassword drop down menu
 document.addEventListener('DOMContentLoaded', function() {
     const fieldMapping = {
-        'account_number': 'Account Number',
-        'username' : 'Username',
-        'email' : 'Email',
+        'accountNumber': 'Account Number',
+        'username': 'Username',
+        'email': 'Email',
         'pin': 'Pin',
         'date': 'Date',
         'other': 'Other'
@@ -21,7 +20,7 @@ document.addEventListener('DOMContentLoaded', function() {
         fieldContainer.remove();
 
         const dropdownItem = document.createElement('li');
-        dropdownItem.innerHTML = `<a class="dropdown-item" href="javascript:void(0);" onclick="addField('${field}')">${capitalizeFirstLetter(field.replace('_', ' '))}</a>`;
+        dropdownItem.innerHTML = `<a class="dropdown-item" href="javascript:void(0);" onclick="addField('${field}')">${capitalizeFirstLetter(field)}</a>`;
         dropdownMenu.appendChild(dropdownItem);
     };
 
@@ -29,7 +28,7 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addField = function(field) {
         const fieldHtml = `
             <div class="field-container" id="field-${field}">
-                <h4 class="mt-3">${capitalizeFirstLetter(field.replace('_', ' '))}</h4>
+                <h4 class="mt-3">${capitalizeFirstLetter(field)}</h4>
                 <div class="row mb-4">
                     <div class="col-8">
                         <input type="text" name="${field}" class="form-control">
@@ -61,6 +60,8 @@ document.addEventListener('DOMContentLoaded', function() {
         return string.charAt(0).toUpperCase() + string.slice(1);
     }
 });
+
+
 
 
 
