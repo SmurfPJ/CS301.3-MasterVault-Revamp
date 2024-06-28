@@ -8,7 +8,7 @@ from pymongo import MongoClient
 import random, string, csv, os
 
 # Constants
-ACCOUNT_METADATA_LENGTH = 10
+ACCOUNT_METADATA_LENGTH = 11
 client = MongoClient('mongodb+srv://Conor:M0ng0DB1@mastervaultdb1.g1a7o98.mongodb.net/')
 db = client.MasterVault
 userData = db["userData"]
@@ -101,15 +101,12 @@ def getPasswords():
         if key == '_id':
             continue  # Skip the '_id' key
 
-        print(f"Processing field: {key} with value: {value}")
+        # print(f"Processing field: {key} with value: {value}")
         
         # Decrypt the value if it is not None
-        # if value is not None:
+        # if "createdDate" not in key and "passwordLocked" not in key and value != None:
         #     value = decrypt(value)
-        #     print(f"Processing field: {key} with value: {value}")
-        
-        if "createdDate" not in key and "passwordLocked" not in key and value != None:
-            value = decrypt(value)
+        #     print(f"Processing field: {key} with decrypted value: {value}")
 
         currentList.append(value)  # Store the (possibly decrypted) value to the list
 
@@ -226,8 +223,8 @@ def login():
                 
                 postEmail = findPost["email"]
 
-                print("Email: ", email)
-                print("Decrypted Email: ", postEmail)
+                # print("Email: ", email)
+                # print("Decrypted Email: ", postEmail)
 
                 if email == postEmail:
 
@@ -236,6 +233,7 @@ def login():
                     # print(session['id'])
                                     
                     session['username'] = decrypt(findPost["username"])
+                    print("Decrypted session username: ", session.get('username'))
                     session['email'] = email
                     # session['_id'] = findPost['_id']
                     return redirect(url_for('animalIDVerification'))
@@ -255,6 +253,8 @@ def logout():
 
     return redirect(url_for('login'))
 
+
+
 @app.route('/about', methods=['GET'])
 def aboutUs():
 
@@ -267,13 +267,16 @@ def animalIDVerification():
     findPost = userData.find_one({"_id": sessionID})
     available_animals = ['giraffe', 'dog', 'chicken', 'monkey', 'peacock', 'tiger']
 
-    selected_animal = findPost['animalID']
+    selected_animal = decrypt(findPost['animalID'])
+    print("Decrypted animal ID: ", selected_animal)
     if selected_animal not in available_animals:
         selected_animal = random.choice(available_animals)
 
     if request.method == 'POST':
         password = request.form.get('password')
         security_check = request.form.get('securityCheck')
+
+        print("Decrypted password: ", decrypt(findPost['loginPassword']))
 
         if security_check and password == decrypt(findPost['loginPassword']):
             if findPost['masterPassword'] == None:
@@ -348,7 +351,7 @@ def register():
 
         post = {
                     "username": encrypt(cform.username.data),
-                    "email": encrypt(cform.email.data),
+                    "email": cform.email.data,
                     "DOB": dobTime,
                     "loginPassword": encrypt(cform.password.data),
                     "animalID": None,
@@ -500,6 +503,7 @@ def addPassword():
             password = request.form.get('password')
 
             additional_fields = {
+                'name': request.form.get('name'),
                 'account_number': request.form.get('account_number'),
                 'pin': request.form.get('pin'),
                 'date': request.form.get('date'),
@@ -526,6 +530,7 @@ def saveNewPassword(website, username, password, additional_fields):
         newCreatedDate = f"createdDate{i}"
         newWebsite = f"website{i}"
         newUsername = f"username{i}"
+        newEmail = f"email{i}"
         newAccountNumber = f"accountNumber{i}"
         newPin = f"pin{i}"
         newDate = f"date{i}"
@@ -535,10 +540,11 @@ def saveNewPassword(website, username, password, additional_fields):
         
         if newWebsite not in searchPasswords:
             post = {
-                newName: newName,
+                newName: additional_fields.get('name'),
                 newCreatedDate: datetime.now(),
                 newWebsite: website,
                 newUsername: username,
+                newEmail: additional_fields.get('email'),
                 newAccountNumber: additional_fields.get('account_number'),
                 newPin: additional_fields.get('pin'),
                 newDate: additional_fields.get('date'),
@@ -550,9 +556,9 @@ def saveNewPassword(website, username, password, additional_fields):
         i += 1
 
     encryptableFields = [newName, newWebsite, newUsername, newAccountNumber, newPin, newDate, newPassword, newOther]
-    for item in post.keys():
-        if item in encryptableFields and post[item] is not None:
-            post[item] = encrypt(post[item])
+    # for item in post.keys():
+    #     if item in encryptableFields and post[item] is not None:
+    #         post[item] = encrypt(post[item])
 
     print(post)
 
@@ -573,11 +579,13 @@ def passwordView(name):
     password_data = {}
     for i in range(1, len(searchPasswords)):
         if searchPasswords.get(f"name{i}") == name:
+        # if decrypt(searchPasswords.get(f"name{i}")) == name:
             password_data = {
                 "name": searchPasswords.get(f"name{i}"),
                 "createdDate": searchPasswords.get(f"createdDate{i}"),
                 "website": searchPasswords.get(f"website{i}"),
                 "username": searchPasswords.get(f"username{i}"),
+                "email": searchPasswords.get(f"email{i}"),
                 "accountNumber": searchPasswords.get(f"accountNumber{i}"),
                 "pin": searchPasswords.get(f"pin{i}"),
                 "date": searchPasswords.get(f"date{i}"),
@@ -586,10 +594,13 @@ def passwordView(name):
             }
             break
 
+        
+
     if request.method == 'POST':
         new_data = {
             "website": request.form.get('website'),
             "username": request.form.get('username'),
+            "email": request.form.get('email'),
             "accountNumber": request.form.get('accountNumber'),
             "pin": request.form.get('pin'),
             "date": request.form.get('date'),
@@ -618,6 +629,8 @@ def updatePassword(name, new_data):
                 update_fields[f"website{i}"] = new_data['website']
             if new_data['username']:
                 update_fields[f"username{i}"] = new_data['username']
+            if new_data['email']:
+                update_fields[f"email{i}"] = new_data['email']
             if new_data['accountNumber']:
                 update_fields[f"accountNumber{i}"] = new_data['accountNumber']
             if new_data['pin']:
@@ -921,7 +934,7 @@ def unlock_account():
 
 def verify_and_unlock_account(sessionID, master_password):
     findPost = userData.find_one({'_id': sessionID})
-    print("Verifying account:", findPost)
+    print("Decrypted master password:", decrypt(findPost['masterPassword']))
     if findPost and decrypt(findPost['masterPassword']) == master_password:
         userData.update_one({'_id': sessionID}, {"$set": {"accountLocked": "Unlocked"}})
         return True

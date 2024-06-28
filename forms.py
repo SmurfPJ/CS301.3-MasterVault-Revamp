@@ -13,10 +13,11 @@ class RegistrationForm(FlaskForm):
     submit_bn = SubmitField('Register')
 
 class FamilyRegistrationForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired(), Length(min=3, max=50)])
-    dob = DateField('Date of Birth', validators=[DataRequired()])
-    password = PasswordField('Password', validators=[DataRequired()])
-    confirm_password = PasswordField('Confirm password', validators=[DataRequired(), EqualTo('password')])
+    username = StringField('Username', validators=[DataRequired(), Length(min=2, max=20)])
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    dob = DateField('Date of Birth', format='%Y-%m-%d', validators=[DataRequired()])
+    password = PasswordField('Password', validators=[DataRequired(), Length(min=6, max=35)])
+    confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password')])
     submit_bn = SubmitField('Add Family Member')
 
 class AnimalSelectionForm(FlaskForm):
