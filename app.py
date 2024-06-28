@@ -598,6 +598,7 @@ def passwordView(name):
 
     if request.method == 'POST':
         new_data = {
+            "name": request.form.get('name'),
             "website": request.form.get('website'),
             "username": request.form.get('username'),
             "email": request.form.get('email'),
@@ -625,6 +626,8 @@ def updatePassword(name, new_data):
     for i in range(1, len(searchPasswords)):
         if searchPasswords.get(f"name{i}") == name:
             update_fields = {}
+            if new_data['name']:
+                update_fields[f"name{i}"] = new_data['name']
             if new_data['website']:
                 update_fields[f"website{i}"] = new_data['website']
             if new_data['username']:
