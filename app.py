@@ -17,6 +17,7 @@ familyData = db["familyData"]
 temporary_2fa_storage = {} # Temporary storage for 2FA codes
 
 
+
 # Database paths
 writeToLogin = open('loginInfo', 'w')
 
@@ -42,6 +43,7 @@ def setSessionID(userID):
 
 
 def generate_password(keyword, length, use_numbers, use_symbols, replace_vowels, replace_most_frequent_vowel, remove_vowels, randomize):
+
     characters = string.ascii_letters  # Always use letters
 
     if use_numbers:
@@ -91,6 +93,7 @@ def getPasswords():
     currentList = []
 
     if searchPasswords is None:
+
         userPasswords.insert_one({"_id": sessionID})
 
     if not searchPasswords:
@@ -110,7 +113,6 @@ def getPasswords():
 
         currentList.append(value)  # Store the (possibly decrypted) value to the list
 
-
         # If the account reaches the max length, add the list to userList
         if len(currentList) == ACCOUNT_METADATA_LENGTH:
             userList.append(currentList)
@@ -123,8 +125,7 @@ def getPasswords():
     print("User Accounts: ", userList)
     return userList
 
-
-
+  
 
 def check_password_strength(password):
     strength = {'status': 'Weak', 'score': 0, 'color': 'red'}
@@ -198,6 +199,7 @@ def handle_create_password():
     return render_template('createPassword.html', password=password, strength=strength, error=error, keyword=keyword,
                            length=length, use_numbers=use_numbers, use_symbols=use_symbols, replace_vowels=replace_vowels,
                            replace_most_frequent_vowel=replace_most_frequent_vowel, remove_vowels=remove_vowels, randomize=randomize)
+
 
 
 
@@ -336,10 +338,11 @@ def send_family_account_request(email, current_user):
     mail.send(msg)
 
 
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     cform = RegistrationForm()
-    print("Starting")
+    # print("Starting")
     if cform.validate_on_submit():
 
         print("Started")
@@ -363,7 +366,7 @@ def register():
                     "lockTimestamp": timeNow
                 }
         
-        print(post)
+        # print(post)
 
         userData.insert_one(post)
 
@@ -390,11 +393,11 @@ def register():
 
         flash('Account created successfully! An email will be sent to you.', 'success')
         return redirect(url_for('animal_id'))
-    print('ending')
+    # print('ending')
     return render_template("register.html", form=cform)
 
 
-
+ 
 @app.route('/register_family', methods=['GET', 'POST'])
 def register_family():
     form = FamilyRegistrationForm()
@@ -437,8 +440,6 @@ def register_family():
 
 
 
-
-
 @app.route('/master_password', methods=['GET', 'POST'])
 def master_password():
 
@@ -448,6 +449,7 @@ def master_password():
     # Check if the user is logged in and if the account is locked
     if email:
         print("Before lockPost is assigned a variable")
+
         lockedPost = findPost["accountLocked"]
         print(lockedPost)
         if lockedPost == "Locked":
@@ -560,11 +562,10 @@ def saveNewPassword(website, username, password, additional_fields):
     #     if item in encryptableFields and post[item] is not None:
     #         post[item] = encrypt(post[item])
 
-    print(post)
+    # print(post)
 
     newData = {"$set": post}
     userPasswords.update_one(searchPasswords, newData)
-
 
 
 
@@ -610,6 +611,7 @@ def passwordView(name):
         }
 
         updatePassword(name, new_data)
+
         return redirect(url_for('passwordList'))
 
     return render_template('passwordView.html', password_data=password_data)
@@ -651,6 +653,17 @@ def updatePassword(name, new_data):
 
 
 
+def updatePassword(oldWebsite, oldEmail, oldPassword, newWebsite, newEmail, newPassword):
+
+    searchPasswords = userPasswords.find_one({'_id': sessionID})
+
+    # Find the document with the specified sessionID and the old password details
+    if not searchPasswords:
+        print("No passwords found for the user.")
+        return
+
+      
+      
 @app.route('/resetPassword', methods=['GET', 'POST'])
 def resetPassword():
     if request.method == 'POST':    
@@ -663,8 +676,10 @@ def resetPassword():
     return render_template('resetPassword.html')
 
 
+
 @app.route('/passwordList', methods=['GET'])
 def passwordList():
+
     findPost = userData.find_one({'_id': sessionID})
 
     if 'username' in session:
@@ -778,6 +793,7 @@ def enable_2fa():
     #     return jsonify({'message': 'User not logged in'}), 401
 
     update_2fa_status(sessionID, True)
+
     return jsonify({'message': '2FA has been enabled'}), 200
 
 
@@ -807,12 +823,12 @@ def get_2fa_status():
     findPost = userData.find_one({'_id': sessionID})
 
     if findPost:
+
         print("2FA Status:", findPost['2FA'])
         two_fa_status = findPost['2FA']
         return jsonify({'2fa_enabled': two_fa_status})
     else:
         return jsonify({'error': 'User not found'}), 404
-
 
 
 
@@ -876,9 +892,11 @@ def lock_account():
     if lock_account_in_db(lock_duration):
         session['lock_state'] = 'locked'
         session['unlock_time'] = lock_timestamp
+
         return jsonify({'status': 'success', 'message': 'Account locked'})
     else:
         return jsonify({'status': 'error', 'message': 'Failed to lock account'})
+    
 
     
 
@@ -910,6 +928,7 @@ def update_lock_state_in_db(lock_state):
     userData.update_one({'_id': sessionID}, update)
 
 
+
 @app.route('/unlock_account', methods=['POST'])
 def unlock_account():
     global sessionID
@@ -935,6 +954,7 @@ def unlock_account():
         return jsonify({'status': 'error', 'message': 'Incorrect master password'}), 401
 
 
+
 def verify_and_unlock_account(sessionID, master_password):
     findPost = userData.find_one({'_id': sessionID})
     print("Decrypted master password:", decrypt(findPost['masterPassword']))
@@ -943,12 +963,12 @@ def verify_and_unlock_account(sessionID, master_password):
         return True
     return False
 
-
+  
 
 def lock_account_in_db(lock_duration):
     global sessionID
     lock_duration_in_minutes = int(lock_duration)
-
+    
     update = {
         "$set": {
             "accountLocked": "Locked",
@@ -968,6 +988,7 @@ def auto_unlock_account():
 
     return jsonify({'status': 'success', 'message': 'Account automatically unlocked'})
 
+    return locked
 
 
 
@@ -991,6 +1012,9 @@ def is_valid_pin(email, entered_pin):
 
 @app.route('/delete_account', methods=['POST'])
 def delete_account():
+
+    findPost = userPasswords.find_one({'_id': sessionID})
+
     # Check if the user is authenticated
     if 'email' not in session:
         return jsonify({"success": False, "message": "User not logged in."}), 401
