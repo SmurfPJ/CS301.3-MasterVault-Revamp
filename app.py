@@ -9,7 +9,7 @@ import random, string, csv, os
 
 # Constants
 ACCOUNT_METADATA_LENGTH = 11
-client = MongoClient('mongodb+srv://Conor:M0ng0DB1@mastervault-free.je43o.mongodb.net/')
+client = MongoClient('mongodb+srv://Conor:M0ng0DB1@mastervaultdb1.lf6e7.mongodb.net/')
 db = client.MasterVault
 userData = db["userData"]
 userPasswords = db["userPasswords"]
